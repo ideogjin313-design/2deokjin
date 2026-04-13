@@ -8595,5 +8595,103 @@ def submit_integrated_feedback(actual_label: str, is_match: bool, consent: bool)
         )
 
 
+GOOGLE_FEEDBACK_FORM_URL = "https://forms.gle/8xHNzEhk3mt3EJya8"
+
+
+def render_integrated_feedback_section() -> None:
+    st.markdown(
+        """
+        <style>
+        .feedback-form-wrap {
+            max-width: 860px;
+            margin: 0 auto;
+        }
+        .feedback-form-card {
+            background: linear-gradient(180deg, rgba(255,251,247,0.98) 0%, rgba(255,248,242,0.98) 100%);
+            border: 1.35px solid #dcc7b6;
+            border-radius: 28px;
+            padding: 1.75rem 1.6rem 1.6rem 1.6rem;
+            box-shadow: 0 16px 34px rgba(199,171,145,0.12);
+        }
+        .feedback-form-kicker {
+            font-size: 0.92rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            color: #a86a3c;
+            margin-bottom: 0.8rem;
+        }
+        .feedback-form-title {
+            font-size: 1.85rem;
+            line-height: 1.35;
+            font-weight: 900;
+            color: #2f2622;
+            margin-bottom: 0.95rem;
+            white-space: pre-line;
+        }
+        .feedback-form-copy {
+            color: #7d7068;
+            font-size: 1rem;
+            line-height: 1.8;
+            margin-bottom: 1rem;
+        }
+        .feedback-form-alert {
+            background: rgba(255,244,236,0.92);
+            border: 1.2px solid #e5c5ad;
+            border-radius: 22px;
+            padding: 1rem 1.05rem;
+            color: #7a4a2d;
+            font-size: 1rem;
+            line-height: 1.7;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+        .feedback-form-note {
+            color: #7d7068;
+            font-size: 0.98rem;
+            line-height: 1.8;
+            margin-bottom: 1.3rem;
+        }
+        .feedback-form-link-note {
+            margin-top: 0.9rem;
+            color: #9a887c;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            word-break: break-all;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown('<div class="feedback-form-wrap">', unsafe_allow_html=True)
+    st.markdown(
+        """
+        <div class="feedback-form-card">
+            <div class="feedback-form-kicker">FEEDBACK</div>
+            <div class="feedback-form-title">추가 피드백은 구글 폼으로 남겨주세요.</div>
+            <div class="feedback-form-copy">
+                결과를 사용해보시며 느낀 점이나 개선되었으면 하는 부분이 있다면 구글 폼으로 의견을 남겨주세요.
+                남겨주신 피드백은 서비스 완성도를 높이는 데 큰 도움이 됩니다.
+            </div>
+            <div class="feedback-form-alert">
+                퍼스널 컬러 분석 개선을 위해 얼굴 이미지(셀카)를 제공해주세요 !<br/>
+                :rotating_light: 제공해주신 이미지는 머신러닝 모델 학습용으로만 사용됩니다.
+            </div>
+            <div class="feedback-form-note">
+                분석 결과가 얼마나 잘 맞았는지, 어떤 점이 아쉬웠는지, 추가되면 좋을 기능이 무엇인지 자유롭게 적어주세요.
+                구글 폼에서 이미지를 함께 제출해주시면 이후 모델 개선에도 반영할 수 있습니다.
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.link_button("구글 폼으로 피드백 남기기 →", GOOGLE_FEEDBACK_FORM_URL, use_container_width=True)
+    st.markdown(
+        f'<div class="feedback-form-link-note">폼 링크: {GOOGLE_FEEDBACK_FORM_URL}</div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
 if __name__ == "__main__":
     main()
