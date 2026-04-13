@@ -1772,6 +1772,11 @@ def normalize_asset_key(value: str) -> str:
     return "".join(ch for ch in normalized if ch.isalnum())
 
 
+def normalize_unicode_filename(value: str) -> str:
+    normalized = unicodedata.normalize("NFC", value).strip().lower()
+    return "".join(ch for ch in normalized if ch.isalnum())
+
+
 def get_scent_label_image_path(label: str) -> Optional[Path]:
     target = unicodedata.normalize("NFC", label).lower()
     for path in APP_DIR.glob("*.png"):
@@ -1870,6 +1875,8 @@ def load_final_youssoful_product_details() -> Dict[str, Dict[str, str]]:
             korean_name = (row.get("상품명") or "").strip()
             english_name = (row.get("영문명") or "").strip()
             payload = {
+                "korean_name": korean_name,
+                "english_name": english_name,
                 "description": (row.get("설명") or "").strip(),
                 "top": (row.get("TOP") or "").strip(),
                 "middle": (row.get("MIDDLE") or "").strip(),
@@ -1893,7 +1900,7 @@ def get_product_detail_info(product_name: str) -> Dict[str, str]:
         if info:
             return info
 
-    return {"description": "", "top": "", "middle": "", "base": ""}
+    return {"korean_name": "", "english_name": "", "description": "", "top": "", "middle": "", "base": ""}
 
 
 def build_product_note_sections_markup(product_name: str, notes_text: str = "") -> str:
@@ -1934,6 +1941,20 @@ def get_product_image_path(product_name: str) -> Optional[Path]:
     product_key = normalize_asset_key(product_name)
     candidate_keys = [product_key]
     candidate_keys.extend(PRODUCT_IMAGE_KEY_ALIASES.get(product_key, []))
+    detail_info = get_product_detail_info(product_name)
+
+    exact_name_candidates = []
+    for raw_name in [product_name, detail_info.get("korean_name", ""), detail_info.get("english_name", "")]:
+        cleaned = (raw_name or "").strip()
+        if cleaned:
+            exact_name_candidates.append(cleaned)
+    normalized_exact_names = {normalize_unicode_filename(name) for name in exact_name_candidates if name}
+
+    for exact_name in exact_name_candidates:
+        for extension in image_extensions:
+            exact_path = APP_DIR / f"{exact_name}{extension}"
+            if exact_path.is_file():
+                return exact_path
 
     for candidate_key in candidate_keys:
         mapped_filename = PRODUCT_IMAGE_FILE_MAP.get(candidate_key)
@@ -1945,6 +1966,9 @@ def get_product_image_path(product_name: str) -> Optional[Path]:
     for path in APP_DIR.iterdir():
         if not path.is_file() or path.suffix.lower() not in image_extensions:
             continue
+        normalized_stem = normalize_unicode_filename(path.stem)
+        if path.stem in exact_name_candidates or normalized_stem in normalized_exact_names:
+            return path
         normalized_name = normalize_asset_key(path.stem)
         if any(candidate_key and candidate_key in normalized_name for candidate_key in candidate_keys):
             return path
