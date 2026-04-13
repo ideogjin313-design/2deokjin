@@ -8,6 +8,7 @@ import base64
 from collections import OrderedDict
 from datetime import datetime
 from io import BytesIO
+import os
 from pathlib import Path
 import time
 from textwrap import dedent
@@ -466,6 +467,20 @@ PRODUCT_LIBRARY: Dict[str, List[Dict[str, str]]] = {
 APP_DIR = Path(__file__).resolve().parent
 MODEL_IMAGE_SIZE = 224
 
+
+def should_use_background_removal() -> bool:
+    if remove is None:
+        return False
+
+    app_dir_posix = APP_DIR.as_posix().lower()
+    if app_dir_posix.startswith("/mount/src/"):
+        return False
+
+    if os.environ.get("STREAMLIT_CLOUD", "").strip().lower() in {"1", "true", "yes"}:
+        return False
+
+    return True
+
 PERSONAL_COLOR_PALETTE_IMAGES = {
     "봄웜라이트": APP_DIR / "색상팔레트_봄웜라이트.png",
     "봄웜브라이트": APP_DIR / "색상팔레트_봄웜브라이트.png",
@@ -763,7 +778,7 @@ def predict_personal_color_from_image(image_source) -> Dict[str, object]:
     image = load_prepared_image(image_source)
 
     rembg_image = image
-    if remove is not None:
+    if should_use_background_removal():
         try:
             image_buffer = BytesIO()
             image.save(image_buffer, format="PNG")
