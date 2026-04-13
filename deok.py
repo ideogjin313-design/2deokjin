@@ -1286,7 +1286,7 @@ def apply_global_style() -> None:
         }
         .featured-product-image {
             width: 100%;
-            max-height: 460px;
+            max-height: 438px;
             object-fit: cover;
             display: block;
             border-radius: 24px;
@@ -1310,8 +1310,8 @@ def apply_global_style() -> None:
             box-shadow: 0 18px 40px rgba(122, 109, 100, 0.1);
         }
         .product-image {
-            width: 126px;
-            height: 168px;
+            width: 120px;
+            height: 160px;
             object-fit: cover;
             border-radius: 22px;
             box-shadow: 0 14px 28px rgba(122, 109, 100, 0.12);
@@ -1857,8 +1857,54 @@ def split_product_notes(notes_text: str) -> Dict[str, List[str]]:
     }
 
 
-def build_product_note_sections_markup(notes_text: str) -> str:
-    groups = split_product_notes(notes_text)
+@st.cache_data(show_spinner=False)
+def load_final_youssoful_product_details() -> Dict[str, Dict[str, str]]:
+    details: Dict[str, Dict[str, str]] = {}
+    csv_path = APP_DIR / "final_youssoful_products.csv"
+    if not csv_path.exists():
+        return details
+
+    with open(csv_path, "r", encoding="utf-8-sig", newline="") as file:
+        reader = csv.DictReader(file)
+        for row in reader:
+            korean_name = (row.get("상품명") or "").strip()
+            english_name = (row.get("영문명") or "").strip()
+            payload = {
+                "description": (row.get("설명") or "").strip(),
+                "top": (row.get("TOP") or "").strip(),
+                "middle": (row.get("MIDDLE") or "").strip(),
+                "base": (row.get("BASE") or "").strip(),
+            }
+            for name in (korean_name, english_name):
+                key = normalize_asset_key(name)
+                if key:
+                    details[key] = payload
+    return details
+
+
+def get_product_detail_info(product_name: str) -> Dict[str, str]:
+    details = load_final_youssoful_product_details()
+    product_key = normalize_asset_key(product_name)
+    candidate_keys = [product_key]
+    candidate_keys.extend(PRODUCT_IMAGE_KEY_ALIASES.get(product_key, []))
+
+    for candidate_key in candidate_keys:
+        info = details.get(candidate_key)
+        if info:
+            return info
+
+    return {"description": "", "top": "", "middle": "", "base": ""}
+
+
+def build_product_note_sections_markup(product_name: str, notes_text: str = "") -> str:
+    detail_info = get_product_detail_info(product_name)
+    groups = {
+        "top": [detail_info["top"]] if detail_info.get("top") else [],
+        "middle": [detail_info["middle"]] if detail_info.get("middle") else [],
+        "base": [detail_info["base"]] if detail_info.get("base") else [],
+    }
+    if not any(groups.values()):
+        groups = split_product_notes(notes_text)
     labels = [("TOP", "top"), ("MIDDLE", "middle"), ("BASE", "base")]
     sections = []
     for title, key in labels:
@@ -1867,14 +1913,20 @@ def build_product_note_sections_markup(notes_text: str) -> str:
             continue
         content = ", ".join(values)
         sections.append(
-            f"""
-            <div class="product-note-section">
-                <div class="product-note-label">{title}</div>
-                <div class="product-note-value">{content}</div>
-            </div>
-            """
+            f'<div class="product-note-section">'
+            f'<div class="product-note-label">{title}</div>'
+            f'<div class="product-note-value">{content}</div>'
+            f'</div>'
         )
     return "".join(sections)
+
+
+def build_product_description_markup(product_name: str) -> str:
+    detail_info = get_product_detail_info(product_name)
+    description = detail_info.get("description", "").strip()
+    if not description:
+        return ""
+    return f'<div class="featured-product-description">{description}</div>'
 
 
 def get_product_image_path(product_name: str) -> Optional[Path]:
@@ -2216,7 +2268,7 @@ def render_scent_result_page() -> None:
     st.markdown("### 추천 제품")
     for product in products:
         product_image_markup = build_product_image_markup(product["name"])
-        product_note_sections_markup = build_product_note_sections_markup(product["notes"])
+        product_note_sections_markup = build_product_note_sections_markup(product["name"], product["notes"])
         st.markdown(
             f"""
             <div class="product-card">
@@ -2423,7 +2475,7 @@ def render_result_featured_product_card(personal_color: str, featured_product: D
     image_markup = build_product_image_markup(featured_product["name"], "featured-product-image")
     skin_profile = build_skin_profile_phrase()
     skin_recommendation_line = build_skin_profile_recommendation_line()
-    note_sections_markup = build_product_note_sections_markup(featured_product["notes"])
+    note_sections_markup = build_product_note_sections_markup(featured_product["name"], featured_product["notes"])
     body_markup = "".join(
         part
         for part in [
@@ -7481,15 +7533,17 @@ def render_native_featured_product_card(personal_color: str, featured_product: D
         featured_product["name"],
         "featured-product-image featured-product-image-large",
     )
+    detail_info = get_product_detail_info(featured_product["name"])
+    product_description = detail_info.get("description", "").strip() or featured_product["notes"]
     skin_profile = build_skin_profile_phrase()
     skin_recommendation_line = build_skin_profile_recommendation_line()
-    note_sections_markup = build_product_note_sections_markup(featured_product["notes"])
+    note_sections_markup = build_product_note_sections_markup(featured_product["name"], featured_product["notes"])
     st.markdown(
         """
         <style>
         .result-featured-product-card.product-large {
-            max-width: 680px !important;
-            padding: 1.2rem 1.25rem 1.2rem 1.25rem !important;
+            max-width: 860px !important;
+            padding: 1.3rem 1.5rem 1.3rem 1.5rem !important;
         }
         .featured-recommend-top {
             text-align: center;
@@ -7509,20 +7563,47 @@ def render_native_featured_product_card(personal_color: str, featured_product: D
         }
         .featured-product-image-large {
             width: 100% !important;
-            max-height: none !important;
-            min-height: 620px !important;
+            max-height: 420px !important;
+            min-height: 420px !important;
             object-fit: contain !important;
             display: block !important;
-            margin: 0 auto 0.9rem auto !important;
+            margin: 0 auto !important;
             background: #ffffff !important;
-            border-radius: 22px !important;
+            border-radius: 20px !important;
+        }
+        .featured-product-media-frame {
+            width: 100%;
+            min-height: 460px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.1rem 1.15rem;
+            margin: 0 auto 0.9rem auto;
+            background: linear-gradient(180deg, #fffdfa 0%, #fcf6ef 100%);
+            border: 1px solid #eadfd3;
+            border-radius: 22px;
+            box-shadow: 0 14px 28px rgba(122, 109, 100, 0.08);
+        }
+        .featured-product-summary {
+            max-width: 720px;
+            margin: 0.2rem auto 0.9rem auto;
+            font-size: 1rem;
+            line-height: 1.9;
+            color: #4a403a;
+            text-align: center;
+            word-break: keep-all;
         }
         @media (max-width: 760px) {
             .result-featured-product-card.product-large {
                 max-width: 94vw !important;
             }
             .featured-product-image-large {
-                min-height: 520px !important;
+                max-height: 320px !important;
+                min-height: 320px !important;
+            }
+            .featured-product-media-frame {
+                min-height: 360px;
+                padding: 0.9rem;
             }
         }
         .product-note-grid {
@@ -7564,8 +7645,8 @@ def render_native_featured_product_card(personal_color: str, featured_product: D
     body_parts = [
         top_recommend_markup,
         f'<div style="font-size:1.5rem; font-weight:900; color:#2f2622; margin:0.2rem 0 0.55rem 0;">{featured_product["name"]}</div>',
-        f'<div class="featured-product-note">{featured_product["notes"]}</div>',
-        image_markup,
+        f'<div class="featured-product-summary">{product_description}</div>',
+        f'<div class="featured-product-media-frame">{image_markup}</div>' if image_markup else "",
         f'<div class="product-note-grid">{note_sections_markup}</div>',
     ]
     if not image_markup:
