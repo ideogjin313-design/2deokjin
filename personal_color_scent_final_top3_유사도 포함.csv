@@ -1,0 +1,11 @@
+퍼스널컬러,향라벨_top1,유사도_top1,향라벨_top2,유사도_top2,향라벨_top3,유사도_top3
+봄웜라이트,Fruity,0.9249,Honey,0.7683,Floral,0.746
+봄웜브라이트,Citrus,0.9841,Fruity,0.9563,Floral,0.919
+여름쿨라이트,Minty,0.8904,Green,0.8711,Acidic,0.829
+여름쿨뮤트,Powdery,0.9065,Herbal,0.8377,Marine,0.7173
+여름쿨브라이트,Acidic,0.9978,Ozonic,0.9161,Minty,0.9049
+가을웜뮤트,Balsamic,0.954,Food,0.954,Tobacco,0.914
+가을웜소프트,Aromatic,0.9875,Amber,0.9672,Spicy,0.8736
+가을웜딥,Tobacco,0.9979,Smoky,0.9869,Balsamic,0.951
+겨울쿨딥,Musk,0.9462,Animal,0.9178,Woody,0.8687
+겨울쿨브라이트,Camphoraceous,0.9905,Aldehydic,0.849,Sulfurous,0.7489

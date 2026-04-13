@@ -1,0 +1,7 @@
+streamlit
+numpy
+Pillow
+torch
+torchvision
+rembg
+onnxruntime
