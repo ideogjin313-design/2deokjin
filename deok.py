@@ -1784,6 +1784,7 @@ def get_scent_label_image_path(label: str) -> Optional[Path]:
 PRODUCT_IMAGE_KEY_ALIASES = {
     "dimancheaparis": ["dimancheaparis", "dimanche_a_paris"],
     "saintmoritz": ["saintmoritz", "saint_moritz", "saintmorits", "saint_morits"],
+    "saintmorits": ["saintmoritz", "saintmorits", "saint_moritz", "saint_morits"],
     "jetaime": ["jetaime", "jetaime", "jetaime", "jetaime"],
     "berrynoir": ["berrynoir", "berry_noir"],
     "berrysexy": ["berrysexy", "berry_sexy"],
@@ -1809,29 +1810,71 @@ PRODUCT_IMAGE_KEY_ALIASES = {
 }
 
 PRODUCT_IMAGE_FILE_MAP = {
-    "berrynoir": "image (15).png",
-    "berrysexy": "image (16).png",
-    "pugliaostuni": "image (17).png",
-    "divingcefaluspiaggia": "image (18).png",
-    "santalsequoia": "image (19).png",
-    "emporiacotton": "image (20).png",
-    "floralia": "image (21).png",
-    "milanfever": "image (22).png",
-    "saintmoritz": "image (23).png",
-    "jetaime": "image (24).png",
-    "marysgarden": "image (25).png",
-    "staremesto": "image (26).png",
-    "cotedazur": "image (27).png",
-    "lourdes": "image (28).png",
-    "hyperion": "image (29).png",
-    "kingsman": "image (11).png",
-    "daiquiri": "image (32).png",
-    "cocohawaii": "image (33).png",
-    "burjroyal": "image (34).png",
-    "seychelles": "image (12).png",
-    "boroughlondon": "image (13).png",
-    "fiine": "image (14).png",
+    "berrynoir": "베리느와르.png",
+    "berrysexy": "베리섹시.png",
+    "pugliaostuni": "풀리아 오스투니.png",
+    "divingcefaluspiaggia": "다이빙 체팔루스피아자.png",
+    "santalsequoia": "상탈 세콰이아.png",
+    "emporiacotton": "엠포리아 코튼.png",
+    "floralia": "플로랄리아.png",
+    "milanfever": "밀란피버.png",
+    "saintmoritz": "세이트모리츠.png",
+    "jetaime": "쥬뗌므.png",
+    "marysgarden": "메리스가든.png",
+    "staremesto": "스타레 므네스토.png",
+    "cotedazur": "코트 다쥐르.png",
+    "lourdes": "루르드.png",
+    "hyperion": "히페리온.png",
+    "kingsman": "킹스맨.png",
+    "daiquiri": "다이키리.png",
+    "cocohawaii": "코코하와이.png",
+    "burjroyal": "부르즈 로얄.png",
+    "seychelles": "세이셸.png",
+    "boroughlondon": "버로우 런던.png",
+    "fiine": "피네.png",
+    "biove": "비오베.png",
+    "dimancheaparis": "디망쉬 아 파리.png",
 }
+
+
+def split_product_notes(notes_text: str) -> Dict[str, List[str]]:
+    items = [item.strip() for item in notes_text.replace(".", ",").split(",") if item.strip()]
+    if not items:
+        return {"top": [], "middle": [], "base": []}
+
+    if len(items) <= 3:
+        return {"top": items, "middle": [], "base": []}
+    if len(items) <= 6:
+        return {"top": items[:2], "middle": items[2:4], "base": items[4:]}
+
+    top_count = max(2, len(items) // 3)
+    middle_count = max(2, (len(items) - top_count) // 2)
+    base_start = min(len(items), top_count + middle_count)
+    return {
+        "top": items[:top_count],
+        "middle": items[top_count:base_start],
+        "base": items[base_start:],
+    }
+
+
+def build_product_note_sections_markup(notes_text: str) -> str:
+    groups = split_product_notes(notes_text)
+    labels = [("TOP", "top"), ("MIDDLE", "middle"), ("BASE", "base")]
+    sections = []
+    for title, key in labels:
+        values = groups.get(key, [])
+        if not values:
+            continue
+        content = ", ".join(values)
+        sections.append(
+            f"""
+            <div class="product-note-section">
+                <div class="product-note-label">{title}</div>
+                <div class="product-note-value">{content}</div>
+            </div>
+            """
+        )
+    return "".join(sections)
 
 
 def get_product_image_path(product_name: str) -> Optional[Path]:
@@ -2173,17 +2216,19 @@ def render_scent_result_page() -> None:
     st.markdown("### 추천 제품")
     for product in products:
         product_image_markup = build_product_image_markup(product["name"])
+        product_note_sections_markup = build_product_note_sections_markup(product["notes"])
         st.markdown(
             f"""
             <div class="product-card">
-                <div style="display:flex; align-items:center; gap:0.9rem;">
-                    {product_image_markup or f'<span class="icon-badge" style="width:48px; height:48px; font-size:1.4rem;">{profile["emoji"]}</span>'}
-                    <div>
-                        <div style="font-size:1.45rem; font-weight:800; color:#2f2622;">{product['name']}</div>
-                        <div style="font-size:0.98rem; color:#8a776a; margin-top:0.35rem;">{product['match']}</div>
-                    </div>
+                <div style="font-size:1.45rem; font-weight:800; color:#2f2622;">{product['name']}</div>
+                <div style="font-size:0.98rem; color:#8a776a; margin-top:0.35rem;">{product['match']}</div>
+                <div style="margin-top:1rem;">
+                    {product_image_markup or f'<span class="icon-badge" style="width:72px; height:72px; font-size:1.8rem;">{profile["emoji"]}</span>'}
                 </div>
                 <div class="product-chip" style="margin-top:1rem;">{product['notes']}</div>
+                <div class="product-note-grid" style="display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:0.75rem; margin-top:1rem;">
+                    {product_note_sections_markup}
+                </div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -2378,14 +2423,16 @@ def render_result_featured_product_card(personal_color: str, featured_product: D
     image_markup = build_product_image_markup(featured_product["name"], "featured-product-image")
     skin_profile = build_skin_profile_phrase()
     skin_recommendation_line = build_skin_profile_recommendation_line()
+    note_sections_markup = build_product_note_sections_markup(featured_product["notes"])
     body_markup = "".join(
         part
         for part in [
-            image_markup,
             f'<div style="font-size:1.42rem; font-weight:800; color:#2f2622; margin:0.2rem 0 0.55rem 0;">{featured_product["name"]}</div>',
             f'<div class="featured-product-note">{featured_product["notes"]}</div>',
-            f'<div class="featured-product-note" style="margin-top:0.65rem;">{skin_profile}</div>',
+            f'<div class="featured-product-note" style="margin-top:0.4rem;">{skin_profile}</div>',
             f'<div class="featured-product-note" style="margin-top:0.35rem;">{skin_recommendation_line}</div>',
+            image_markup,
+            f'<div class="product-note-grid" style="display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:0.75rem; margin-top:1rem;">{note_sections_markup}</div>',
         ]
         if part
     )
@@ -7436,6 +7483,7 @@ def render_native_featured_product_card(personal_color: str, featured_product: D
     )
     skin_profile = build_skin_profile_phrase()
     skin_recommendation_line = build_skin_profile_recommendation_line()
+    note_sections_markup = build_product_note_sections_markup(featured_product["notes"])
     st.markdown(
         """
         <style>
@@ -7477,6 +7525,30 @@ def render_native_featured_product_card(personal_color: str, featured_product: D
                 min-height: 520px !important;
             }
         }
+        .product-note-grid {
+            display:grid;
+            grid-template-columns:repeat(3, minmax(0, 1fr));
+            gap:0.75rem;
+            margin-top:1rem;
+        }
+        .product-note-section {
+            background:#fffaf5;
+            border:1px solid #eadfd3;
+            border-radius:18px;
+            padding:0.85rem 0.95rem;
+        }
+        .product-note-label {
+            font-size:0.78rem;
+            font-weight:800;
+            letter-spacing:0.08em;
+            color:#a86a3c;
+            margin-bottom:0.35rem;
+        }
+        .product-note-value {
+            font-size:0.95rem;
+            line-height:1.7;
+            color:#4a403a;
+        }
         </style>
         """,
         unsafe_allow_html=True,
@@ -7489,12 +7561,17 @@ def render_native_featured_product_card(personal_color: str, featured_product: D
         f'</div>'
     )
 
-    body_parts = [top_recommend_markup, image_markup]
+    body_parts = [
+        top_recommend_markup,
+        f'<div style="font-size:1.5rem; font-weight:900; color:#2f2622; margin:0.2rem 0 0.55rem 0;">{featured_product["name"]}</div>',
+        f'<div class="featured-product-note">{featured_product["notes"]}</div>',
+        image_markup,
+        f'<div class="product-note-grid">{note_sections_markup}</div>',
+    ]
     if not image_markup:
         body_parts.extend(
             [
-                f'<div style="font-size:1.42rem; font-weight:800; color:#2f2622; margin:0.95rem 0 0.55rem 0;">{featured_product["name"]}</div>',
-                f'<div class="featured-product-note">{featured_product["notes"]}</div>',
+                "",
             ]
         )
     featured_body = "".join([part for part in body_parts if part])
