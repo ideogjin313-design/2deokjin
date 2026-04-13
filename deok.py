@@ -2449,11 +2449,91 @@ def render_scent_result_page() -> None:
 FEEDBACK_DIR = APP_DIR / "feedback_data"
 CONSENTED_IMAGE_DIR = FEEDBACK_DIR / "consented_images"
 FEEDBACK_LOG_PATH = FEEDBACK_DIR / "feedback_log.csv"
+FEEDBACK_SHEET_WORKSHEET = "feedback"
 
 
 def ensure_feedback_dirs() -> None:
     FEEDBACK_DIR.mkdir(exist_ok=True)
     CONSENTED_IMAGE_DIR.mkdir(exist_ok=True)
+
+
+def get_feedback_sheet_settings() -> Optional[Dict[str, object]]:
+    try:
+        feedback_storage = st.secrets.get("feedback_storage", {})
+    except Exception:
+        feedback_storage = {}
+
+    if not feedback_storage:
+        return None
+
+    provider = str(feedback_storage.get("provider", "")).strip().lower()
+    sheet_id = str(feedback_storage.get("sheet_id", "")).strip()
+    worksheet = str(feedback_storage.get("worksheet", FEEDBACK_SHEET_WORKSHEET)).strip() or FEEDBACK_SHEET_WORKSHEET
+
+    if provider != "google_sheets" or not sheet_id:
+        return None
+
+    try:
+        service_account = st.secrets.get("google_service_account") or st.secrets.get("gcp_service_account")
+    except Exception:
+        service_account = None
+
+    if not service_account:
+        return None
+
+    return {
+        "provider": provider,
+        "sheet_id": sheet_id,
+        "worksheet": worksheet,
+        "service_account": dict(service_account),
+    }
+
+
+def append_feedback_to_google_sheet(row: Dict[str, str]) -> str:
+    settings = get_feedback_sheet_settings()
+    if not settings:
+        return ""
+
+    try:
+        import gspread
+        from google.oauth2.service_account import Credentials
+    except ImportError:
+        return ""
+
+    scopes = [
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive",
+    ]
+    credentials = Credentials.from_service_account_info(settings["service_account"], scopes=scopes)
+    client = gspread.authorize(credentials)
+    spreadsheet = client.open_by_key(str(settings["sheet_id"]))
+
+    try:
+        worksheet = spreadsheet.worksheet(str(settings["worksheet"]))
+    except gspread.WorksheetNotFound:
+        worksheet = spreadsheet.add_worksheet(title=str(settings["worksheet"]), rows=1000, cols=20)
+
+    headers = [
+        "timestamp",
+        "uploaded_name",
+        "predicted_label",
+        "predicted_confidence",
+        "user_label",
+        "is_match",
+        "consent",
+        "feedback_comment",
+        "saved_image_path",
+    ]
+
+    existing_header = worksheet.row_values(1)
+    if not existing_header:
+        worksheet.append_row(headers)
+    elif existing_header != headers:
+        worksheet.clear()
+        worksheet.append_row(headers)
+
+    worksheet.append_row([row.get(header, "") for header in headers])
+    return f"Google Sheets / {settings['worksheet']}"
 
 
 def ensure_integrated_feedback_state() -> None:
@@ -8430,6 +8510,89 @@ def render_choice_page(
             disabled=not bool(st.session_state.get(state_key)),
         ):
             go_to(next_page)
+
+def save_integrated_feedback_log(
+    *,
+    uploaded_name: str,
+    predicted_label: str,
+    predicted_confidence: Optional[float],
+    user_label: str,
+    is_match: bool,
+    consent: bool,
+    feedback_comment: str = "",
+    saved_image_path: str = "",
+) -> str:
+    row = {
+        "timestamp": datetime.now().isoformat(timespec="seconds"),
+        "uploaded_name": uploaded_name,
+        "predicted_label": predicted_label,
+        "predicted_confidence": f"{predicted_confidence:.4f}" if predicted_confidence is not None else "",
+        "user_label": user_label,
+        "is_match": "yes" if is_match else "no",
+        "consent": "yes" if consent else "no",
+        "feedback_comment": feedback_comment,
+        "saved_image_path": saved_image_path,
+    }
+
+    sheet_destination = append_feedback_to_google_sheet(row)
+    if sheet_destination:
+        return sheet_destination
+
+    ensure_feedback_dirs()
+    is_new = not FEEDBACK_LOG_PATH.exists()
+    with open(FEEDBACK_LOG_PATH, "a", encoding="utf-8-sig", newline="") as file:
+        writer = csv.DictWriter(
+            file,
+            fieldnames=[
+                "timestamp",
+                "uploaded_name",
+                "predicted_label",
+                "predicted_confidence",
+                "user_label",
+                "is_match",
+                "consent",
+                "feedback_comment",
+                "saved_image_path",
+            ],
+        )
+        if is_new:
+            writer.writeheader()
+        writer.writerow(row)
+    return str(FEEDBACK_LOG_PATH)
+
+
+def submit_integrated_feedback(actual_label: str, is_match: bool, consent: bool) -> None:
+    uploaded_file = st.session_state.uploaded_image
+    if uploaded_file is None:
+        return
+
+    saved_image_path = ""
+    if consent:
+        saved_image_path = save_integrated_feedback_image(uploaded_file, actual_label)
+
+    feedback_log_destination = save_integrated_feedback_log(
+        uploaded_name=getattr(uploaded_file, "name", "camera_capture"),
+        predicted_label=st.session_state.personal_color,
+        predicted_confidence=st.session_state.prediction_confidence,
+        user_label=actual_label,
+        is_match=is_match,
+        consent=consent,
+        feedback_comment=st.session_state.get("feedback_comment", "").strip(),
+        saved_image_path=saved_image_path,
+    )
+
+    st.session_state.feedback_saved = True
+    if consent:
+        st.session_state.feedback_saved_message = (
+            "피드백과 이미지 사용 동의가 저장되었어요.\n"
+            f"피드백 저장 위치: {feedback_log_destination}\n"
+            f"동의 이미지 저장 위치: {saved_image_path}"
+        )
+    else:
+        st.session_state.feedback_saved_message = (
+            "피드백이 저장되었고 이미지는 학습 데이터로 사용하지 않도록 기록했어요.\n"
+            f"피드백 저장 위치: {feedback_log_destination}"
+        )
 
 
 if __name__ == "__main__":
