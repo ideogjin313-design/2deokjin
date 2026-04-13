@@ -672,9 +672,15 @@ def _load_state(model: nn.Module, pattern: str) -> nn.Module:
     return model
 
 
+@st.cache_data(show_spinner=False)
+def load_personal_color_classes() -> List[str]:
+    classes = np.load(APP_DIR / "stacking_classes.npy", allow_pickle=True)
+    return [str(item) for item in classes.tolist()]
+
+
 @st.cache_resource(show_spinner=False)
 def load_personal_color_assets() -> Dict[str, object]:
-    classes = np.load(APP_DIR / "stacking_classes.npy", allow_pickle=True)
+    classes = load_personal_color_classes()
 
     with open(APP_DIR / "meta_model.pkl", "rb") as file:
         meta_model = pickle.load(file)
@@ -2769,7 +2775,7 @@ def render_integrated_feedback_section() -> None:
     ensure_integrated_feedback_state()
     predicted_label = st.session_state.personal_color
     confidence = st.session_state.prediction_confidence
-    class_options = list(load_personal_color_assets()["classes"])
+    class_options = load_personal_color_classes()
 
     st.markdown(
         """
@@ -3066,7 +3072,7 @@ def render_choice_page(
 def render_integrated_feedback_section() -> None:
     ensure_integrated_feedback_state()
     predicted_label = st.session_state.personal_color
-    class_options = list(load_personal_color_assets()["classes"])
+    class_options = load_personal_color_classes()
     st.markdown(
         """
         <style>
@@ -3858,7 +3864,7 @@ def render_home() -> None:
 def render_integrated_feedback_section() -> None:
     ensure_integrated_feedback_state()
     predicted_label = st.session_state.personal_color
-    class_options = list(load_personal_color_assets()["classes"])
+    class_options = load_personal_color_classes()
     st.markdown(
         """
         <style>
@@ -4554,7 +4560,7 @@ def submit_integrated_feedback(actual_label: str, is_match: bool, consent: bool)
 def render_integrated_feedback_section() -> None:
     ensure_integrated_feedback_state()
     predicted_label = st.session_state.personal_color
-    class_options = list(load_personal_color_assets()["classes"])
+    class_options = load_personal_color_classes()
     st.markdown(
         """
         <style>
@@ -7395,7 +7401,7 @@ def render_native_featured_product_card(personal_color: str, featured_product: D
 def render_integrated_feedback_section() -> None:
     ensure_integrated_feedback_state()
     predicted_label = st.session_state.personal_color
-    class_options = list(load_personal_color_assets()["classes"])
+    class_options = load_personal_color_classes()
     st.markdown(
         """
         <style>
