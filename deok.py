@@ -2702,6 +2702,67 @@ def submit_integrated_feedback(actual_label: str, is_match: bool, consent: bool)
                 unsafe_allow_html=True,
             )
         st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("<div style='height:1.6rem;'></div>", unsafe_allow_html=True)
+    _, consent_center, _ = st.columns([1.05, 2.3, 1.05])
+    with consent_center:
+        st.markdown(
+            """
+            <style>
+            .home-consent-wrap [data-testid="stExpander"] {
+                border: 1.2px solid #dcc7b6 !important;
+                border-radius: 22px !important;
+                background: rgba(255, 251, 247, 0.92) !important;
+                box-shadow: 0 14px 28px rgba(199,171,145,0.08) !important;
+            }
+            .home-consent-wrap [data-testid="stExpander"] details {
+                background: transparent !important;
+                border-radius: 22px !important;
+            }
+            .home-consent-wrap [data-testid="stExpander"] summary {
+                padding: 0.9rem 1rem !important;
+                color: #2f2622 !important;
+                font-weight: 800 !important;
+            }
+            .home-consent-title {
+                color: #a86a3c;
+                font-weight: 800;
+                letter-spacing: 0.04em;
+                margin-bottom: 0.8rem;
+            }
+            .home-consent-body {
+                color: #6d5b4f;
+                line-height: 1.85;
+                font-size: 0.98rem;
+            }
+            .home-consent-body strong {
+                color: #2f2622;
+            }
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
+        st.markdown('<div class="home-consent-wrap">', unsafe_allow_html=True)
+        with st.expander("📋 피드백 수집 안내", expanded=False):
+            st.markdown(
+                """
+                <div class="home-consent-title">📋 수집 안내</div>
+                <div class="home-consent-body">
+                    서비스 개선을 위해 아래 정보를 수집합니다.<br/><br/>
+                    <strong>[수집 항목]</strong><br/>
+                    - 퍼스널컬러 진단 결과<br/><br/>
+                    <strong>[수집 목적]</strong><br/>
+                    - AI 모델 정확도 개선<br/>
+                    - 향 추천 서비스 품질 향상<br/><br/>
+                    <strong>[보관 및 활용]</strong><br/>
+                    - 수집된 정보는 서비스 개선 목적으로만 사용됩니다<br/>
+                    - 제3자에게 제공되지 않습니다<br/>
+                    - 업로드하신 사진은 저장되지 않습니다<br/>
+                    - 개인 식별 정보(이름, 연락처 등)는 수집하지 않습니다.
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        st.markdown("</div>", unsafe_allow_html=True)
 
 
 def render_integrated_feedback_section() -> None:
@@ -8658,7 +8719,128 @@ def submit_integrated_feedback(actual_label: str, is_match: bool, consent: bool)
         )
 
 
-GOOGLE_FEEDBACK_FORM_URL = "https://forms.gle/8xHNzEhk3mt3EJya8"
+GOOGLE_FEEDBACK_FORM_URL = "https://forms.gle/JZ7p5CX2uaiVH2rVA"
+
+
+def render_home() -> None:
+    steps = [
+        ("피부 상태 확인", "피부 타입, 수분감, 피부 온도를 차례로 체크해 현재 피부 컨디션을 파악해요."),
+        ("퍼스널 컬러 분석", "얼굴 사진을 바탕으로 퍼스널 컬러를 분석하고 결과 카드를 보여드려요."),
+        ("어울리는 향 추천", "퍼스널 컬러 결과와 피부 데이터를 함께 반영해 어울리는 향을 골라드려요."),
+        ("향수 제품 추천", "추천된 어울리는 향 계열과 피부 특성을 바탕으로 유쏘풀 제품까지 이어서 추천해드려요."),
+    ]
+    flow_markup = ""
+    for index, (title, desc) in enumerate(steps):
+        flow_markup += (
+            '<div class="home-flow-step">'
+            f'<div class="home-flow-title">{title}</div>'
+            f'<div class="home-flow-desc">{desc}</div>'
+            "</div>"
+        )
+        if index < len(steps) - 1:
+            flow_markup += (
+                '<div class="home-flow-arrow-wrap">'
+                '<div class="home-flow-line"></div>'
+                '<div class="home-flow-arrow"></div>'
+                "</div>"
+            )
+
+    home_html = (
+        "<style>"
+        ".home-page-offset{height:2.6rem;}"
+        ".home-hero-wide{background:linear-gradient(180deg,rgba(255,252,248,0.96),rgba(255,248,241,0.94));border:1.6px solid #d8c0ad;border-radius:38px;padding:2.7rem 2.6rem 2.4rem 2.6rem;box-shadow:0 28px 60px rgba(182,148,121,0.16);margin-bottom:1.9rem;position:relative;overflow:hidden;}"
+        ".home-hero-wide:before{content:'';position:absolute;right:-80px;top:-80px;width:240px;height:240px;border-radius:999px;background:radial-gradient(circle,rgba(201,162,127,0.22),rgba(201,162,127,0));}"
+        ".home-hero-kicker{color:#9f6c45;font-weight:800;letter-spacing:.16em;font-size:.82rem;margin-bottom:1rem;position:relative;z-index:1;}"
+        ".home-hero-title{font-size:2.6rem;line-height:1.18;font-weight:900;color:#251d19;margin-bottom:1rem;white-space:pre-line;letter-spacing:-.03em;position:relative;z-index:1;}"
+        ".home-hero-desc{max-width:760px;font-size:1.02rem;line-height:1.9;color:#6d5b4f;position:relative;z-index:1;}"
+        ".home-flow-head{margin:.2rem 0 1rem 0;font-size:1rem;font-weight:800;color:#8e6a52;letter-spacing:-.01em;}"
+        ".home-flow-step{background:rgba(255,252,248,0.94);border:1.4px solid #dcc7b6;border-radius:24px;padding:1.2rem 1.25rem 1.05rem 1.25rem;box-shadow:0 14px 30px rgba(199,171,145,0.10);position:relative;overflow:hidden;}"
+        ".home-flow-step:before{content:'';position:absolute;left:1.05rem;top:0;width:72px;height:5px;border-radius:0 0 999px 999px;background:linear-gradient(90deg,#b67c56,#d9b08c);}"
+        ".home-flow-title{font-size:1.42rem;font-weight:800;color:#2b221e;letter-spacing:-.02em;padding-top:.3rem;}"
+        ".home-flow-desc{margin-top:.42rem;font-size:.96rem;line-height:1.72;color:#6f645b;}"
+        ".home-flow-arrow-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;margin:.12rem 0;}"
+        ".home-flow-line{width:8px;height:16px;background:linear-gradient(180deg,#c7976f,#b57b55);border-radius:999px;}"
+        ".home-flow-arrow{width:0;height:0;border-left:18px solid transparent;border-right:18px solid transparent;border-top:18px solid #b57b55;filter:drop-shadow(0 8px 12px rgba(181,123,85,0.18));}"
+        "@media (max-width:768px){.home-page-offset{height:1.4rem;}.home-hero-wide{padding:2rem 1.4rem;}.home-hero-title{font-size:2rem;}.home-flow-title{font-size:1.18rem;}.home-flow-step{padding:1.05rem .95rem .9rem .95rem;border-radius:20px;}.home-flow-step:before{left:.9rem;width:56px;height:4px;}.home-flow-desc{font-size:.92rem;line-height:1.62;}}"
+        "</style>"
+        '<div class="home-page-offset"></div>'
+        '<div class="home-hero-wide">'
+        '<div class="home-hero-kicker">유쏘풀 향 추천</div>'
+        '<div class="home-hero-title">피부 상태와 퍼스널 컬러를 반영한\n유쏘풀 향수 큐레이션</div>'
+        '<div class="home-hero-desc">피부 상태를 먼저 확인하고 얼굴 사진으로 퍼스널 컬러를 분석해요. 그 결과를 바탕으로 어울리는 향과 유쏘풀 제품까지 차례로 추천해드릴게요.</div>'
+        "</div>"
+        '<div class="home-flow-head">이런 흐름으로 분석해요.</div>'
+        f"{flow_markup}"
+    )
+    st.markdown(home_html, unsafe_allow_html=True)
+
+    st.markdown("<div style='height:1.2rem;'></div>", unsafe_allow_html=True)
+    _, center, _ = st.columns([1.6, 1.5, 1.6])
+    with center:
+        if st.button("향수 추천 시작하기 →", type="primary", use_container_width=True):
+            go_to("skin")
+
+    st.markdown("<div style='height:1.6rem;'></div>", unsafe_allow_html=True)
+    _, consent_center, _ = st.columns([1.05, 2.3, 1.05])
+    with consent_center:
+        st.markdown(
+            """
+            <style>
+            .home-consent-wrap [data-testid="stExpander"] {
+                border: 1.2px solid #dcc7b6 !important;
+                border-radius: 22px !important;
+                background: rgba(255, 251, 247, 0.92) !important;
+                box-shadow: 0 14px 28px rgba(199,171,145,0.08) !important;
+            }
+            .home-consent-wrap [data-testid="stExpander"] details {
+                background: transparent !important;
+                border-radius: 22px !important;
+            }
+            .home-consent-wrap [data-testid="stExpander"] summary {
+                padding: 0.9rem 1rem !important;
+                color: #2f2622 !important;
+                font-weight: 800 !important;
+            }
+            .home-consent-title {
+                color: #a86a3c;
+                font-weight: 800;
+                letter-spacing: 0.04em;
+                margin-bottom: 0.8rem;
+            }
+            .home-consent-body {
+                color: #6d5b4f;
+                line-height: 1.85;
+                font-size: 0.98rem;
+            }
+            .home-consent-body strong {
+                color: #2f2622;
+            }
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
+        st.markdown('<div class="home-consent-wrap">', unsafe_allow_html=True)
+        with st.expander("📋 피드백 수집 안내", expanded=False):
+            st.markdown(
+                """
+                <div class="home-consent-title">📋 수집 안내</div>
+                <div class="home-consent-body">
+                    서비스 개선을 위해 아래 정보를 수집합니다.<br/><br/>
+                    <strong>[수집 항목]</strong><br/>
+                    - 퍼스널컬러 진단 결과<br/><br/>
+                    <strong>[수집 목적]</strong><br/>
+                    - AI 모델 정확도 개선<br/>
+                    - 향 추천 서비스 품질 향상<br/><br/>
+                    <strong>[보관 및 활용]</strong><br/>
+                    - 수집된 정보는 서비스 개선 목적으로만 사용됩니다<br/>
+                    - 제3자에게 제공되지 않습니다<br/>
+                    - 업로드하신 사진은 저장되지 않습니다<br/>
+                    - 개인 식별 정보(이름, 연락처 등)는 수집하지 않습니다.
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        st.markdown("</div>", unsafe_allow_html=True)
 
 
 def render_integrated_feedback_section() -> None:
