@@ -1506,6 +1506,264 @@ def render_choice_page(
         )
 
 
+def render_skin_choice_page(
+    kicker: str,
+    title: str,
+    description: str,
+    options: List[Dict[str, object]],
+    state_key: str,
+    prev_page: str,
+    next_page: str,
+) -> None:
+    banner_image = APP_DIR / "image (12).png"
+    banner_style = (
+        f"background-image: linear-gradient(rgba(244, 231, 218, 0.40), rgba(244, 231, 218, 0.40)), "
+        f"url('data:image/png;base64,{image_to_base64(banner_image)}');"
+        if banner_image.exists()
+        else "background: linear-gradient(135deg, #f4e5d6 0%, #ecd4c1 45%, #e8ddcf 100%);"
+    )
+
+    survey_groups = [
+        {
+            "title": "Q1. 피부 타입은 무엇인가요?",
+            "state_key": "skin_type",
+            "columns": 4,
+            "options": [
+                ("지성", "지성 피부"),
+                ("건성", "건성 피부"),
+                ("민감성", "민감성 피부"),
+                ("중성", "잘 모르겠습니다"),
+            ],
+        },
+        {
+            "title": "Q2. 평소 피부에 남는 수분감이 어느정도인가요?",
+            "state_key": "moisture_level",
+            "columns": 2,
+            "options": [
+                ("건조함", "평소 피부가 건조한 편이다."),
+                ("보통", "보통인 편이다."),
+            ],
+        },
+        {
+            "title": "Q3. 평소 피부 열감이 자주 도는 편인가요?",
+            "state_key": "temperature_level",
+            "columns": 2,
+            "options": [
+                ("높은 편", "열감이 자주 도는 편이다."),
+                ("낮은 편", "보통인 편이다."),
+            ],
+        },
+    ]
+
+    st.markdown(
+        """
+        <style>
+        .skin-survey-shell {
+            max-width: 1120px;
+            margin: 0 auto;
+        }
+        .skin-survey-progress {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.55rem;
+            margin: 0.25rem 0 2rem 0;
+        }
+        .skin-survey-progress-step {
+            width: 62px;
+            height: 62px;
+            border-radius: 999px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.9rem;
+            font-weight: 900;
+            color: #ffffff;
+            background: #d6c5b8;
+            box-shadow: 0 10px 22px rgba(181, 145, 116, 0.12);
+        }
+        .skin-survey-progress-step.is-current {
+            background: #a67c60;
+        }
+        .skin-survey-progress-line {
+            width: 116px;
+            border-top: 5px dotted #cfbeb1;
+            transform: translateY(-1px);
+        }
+        .skin-survey-hero {
+            border-radius: 40px;
+            min-height: 276px;
+            padding: 3rem 4rem;
+            background-size: cover;
+            background-position: center;
+            display: flex;
+            align-items: center;
+            margin-bottom: 2.2rem;
+            overflow: hidden;
+        }
+        .skin-survey-hero-inner {
+            max-width: 660px;
+        }
+        .skin-survey-hero-title {
+            font-size: 2.45rem;
+            line-height: 1.18;
+            font-weight: 900;
+            color: #111111;
+            letter-spacing: -0.05em;
+            white-space: pre-line;
+        }
+        .skin-survey-hero-copy {
+            margin-top: 1.2rem;
+            font-size: 1rem;
+            line-height: 1.75;
+            color: #2f2622;
+        }
+        .skin-survey-question-title {
+            font-size: 1.5rem;
+            font-weight: 900;
+            color: #1e1714;
+            margin: 0 0 0.85rem 0.35rem;
+            letter-spacing: -0.03em;
+        }
+        .skin-survey-button-wrap .stButton > button {
+            min-height: 72px !important;
+            border-radius: 999px !important;
+            border: 1.5px solid #d7beaa !important;
+            background: #ffffff !important;
+            color: #13100d !important;
+            font-weight: 900 !important;
+            font-size: 1.08rem !important;
+            box-shadow: none !important;
+        }
+        .skin-survey-button-wrap .stButton > button[kind="primary"] {
+            background: #fbf2e3 !important;
+            border: 1.8px solid #d1b498 !important;
+            color: #171310 !important;
+        }
+        .skin-survey-actions {
+            max-width: 640px;
+            margin: 2.2rem auto 0 auto;
+        }
+        .skin-survey-actions .stButton > button {
+            min-height: 68px !important;
+            border-radius: 999px !important;
+            font-size: 1.08rem !important;
+            font-weight: 900 !important;
+            box-shadow: 0 14px 28px rgba(181,145,116,0.15) !important;
+        }
+        .skin-survey-actions .stButton > button[kind="secondary"] {
+            background: #ffffff !important;
+            color: #171310 !important;
+            border: 1.5px solid #ebe1d9 !important;
+        }
+        .skin-survey-actions .stButton > button[kind="primary"] {
+            background: #a67c60 !important;
+            color: #ffffff !important;
+            border: 1.5px solid #a67c60 !important;
+        }
+        @media (max-width: 900px) {
+            .skin-survey-progress-step {
+                width: 52px;
+                height: 52px;
+                font-size: 1.45rem;
+            }
+            .skin-survey-progress-line {
+                width: 56px;
+            }
+            .skin-survey-hero {
+                min-height: 240px;
+                padding: 2.1rem 1.5rem;
+                border-radius: 28px;
+            }
+            .skin-survey-hero-title {
+                font-size: 1.9rem;
+            }
+            .skin-survey-question-title {
+                font-size: 1.2rem;
+            }
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown('<div class="skin-survey-shell">', unsafe_allow_html=True)
+    st.markdown(
+        """
+        <div class="skin-survey-progress">
+            <div class="skin-survey-progress-step is-current">1</div>
+            <div class="skin-survey-progress-line"></div>
+            <div class="skin-survey-progress-step">2</div>
+            <div class="skin-survey-progress-line"></div>
+            <div class="skin-survey-progress-step">3</div>
+            <div class="skin-survey-progress-line"></div>
+            <div class="skin-survey-progress-step">4</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        f"""
+        <div class="skin-survey-hero" style="{banner_style}">
+            <div class="skin-survey-hero-inner">
+                <div class="skin-survey-hero-title">지금 내 피부 상태에 가장 가까운 것을<br/>체크해주세요</div>
+                <div class="skin-survey-hero-copy">
+                    평소 느끼는 피부 상태와 가장 가까운 항목 하나를 선택해 주세요.<br/>
+                    추후 향 추천의 기준이 됩니다.
+                </div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    for group in survey_groups:
+        st.markdown(
+            f'<div class="skin-survey-question-title">{group["title"]}</div>',
+            unsafe_allow_html=True,
+        )
+        columns = st.columns(group["columns"], gap="medium")
+        for option_index, (option_key, option_label) in enumerate(group["options"]):
+            is_active = st.session_state.get(group["state_key"]) == option_key
+            button_label = f"✔ {option_label}" if is_active else f"○ {option_label}"
+            with columns[option_index]:
+                st.markdown('<div class="skin-survey-button-wrap">', unsafe_allow_html=True)
+                if st.button(
+                    button_label,
+                    key=f"skin_survey_{group['state_key']}_{option_index}",
+                    type="primary" if is_active else "secondary",
+                    use_container_width=True,
+                ):
+                    st.session_state[group["state_key"]] = option_key
+                    st.rerun()
+                st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("<div style='height:1rem;'></div>", unsafe_allow_html=True)
+
+    st.markdown('<div class="skin-survey-actions">', unsafe_allow_html=True)
+    left, right = st.columns(2, gap="large")
+    with left:
+        if st.button("← 이전", key="skin_survey_prev", type="secondary", use_container_width=True):
+            go_to("home")
+    with right:
+        can_continue = all(
+            [
+                bool(st.session_state.get("skin_type")),
+                bool(st.session_state.get("moisture_level")),
+                bool(st.session_state.get("temperature_level")),
+            ]
+        )
+        if st.button(
+            "다음 →",
+            key="skin_survey_next",
+            type="primary",
+            use_container_width=True,
+            disabled=not can_continue,
+        ):
+            go_to("face")
+    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
 def render_face_page() -> None:
     if st.session_state.analysis_pending:
         st.session_state.page = "loading"
@@ -1706,6 +1964,9 @@ def render_loading_page() -> None:
     st.markdown(
         """
         <style>
+        .stApp {
+            background: #f8f1ea !important;
+        }
         .stButton,
         .stTabs,
         [data-testid="stFileUploader"],
@@ -1716,7 +1977,40 @@ def render_loading_page() -> None:
             display:none !important;
         }
         .block-container {
-            padding-top: 5.2rem !important;
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+        }
+        .loading-overlay-full {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background: #f8f1ea;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+        .loading-card-full {
+            width: min(320px, 88vw);
+            min-height: 388px;
+            background: rgba(255, 253, 250, 0.98);
+            border: 1.4px solid #e2d2c6;
+            border-radius: 34px;
+            box-shadow: 0 24px 56px rgba(199, 171, 145, 0.12);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 2rem 1.6rem;
+        }
+        .loading-copy-full {
+            font-size: 1.12rem;
+            line-height: 1.8;
+            color: #4e433c;
+            font-weight: 900;
+            max-width: 250px;
+            word-break: keep-all;
         }
         </style>
         """,
@@ -1733,10 +2027,12 @@ def render_loading_page() -> None:
         )
     st.markdown(
         f"""
-        <div class="loading-panel">
-            <div class="loading-ring">{''.join(dots)}</div>
-            <div style="font-size:1rem; line-height:1.9; color:#675b54;">
-                업로드한 사진을 바탕으로 퍼스널 컬러를 분석 중입니다...
+        <div class="loading-overlay-full">
+            <div class="loading-card-full">
+                <div class="loading-ring">{''.join(dots)}</div>
+                <div class="loading-copy-full">
+                    업로드한 사진을 바탕으로 퍼스널 컬러를 분석 중입니다...
+                </div>
             </div>
         </div>
         """,
@@ -2325,6 +2621,8 @@ def render_scent_result_page() -> None:
 
 def main() -> None:
     init_session()
+    if st.session_state.page in {"moisture", "temperature"}:
+        st.session_state.page = "skin"
     if st.session_state.analysis_pending and st.session_state.page == "face":
         st.session_state.page = "loading"
     if st.session_state.scent_analysis_pending and st.session_state.page == "result":
@@ -9341,7 +9639,7 @@ def render_face_page() -> None:
     left, right = st.columns(2, gap="large")
     with left:
         if st.button("이전", key="face_prev_layout_override_safe", use_container_width=True):
-            go_to("temperature")
+            go_to("skin")
     with right:
         result_button_clicked = st.button(
             "결과 보기",
@@ -9354,6 +9652,501 @@ def render_face_page() -> None:
             st.session_state.analysis_pending = True
             st.session_state.page = "loading"
             st.rerun()
+
+
+def render_skin_choice_page(
+    kicker: str,
+    title: str,
+    description: str,
+    options: List[Dict[str, object]],
+    state_key: str,
+    prev_page: str,
+    next_page: str,
+) -> None:
+    banner_image = APP_DIR / "image (12).png"
+    banner_style = (
+        f"background-image: linear-gradient(rgba(244, 231, 218, 0.40), rgba(244, 231, 218, 0.40)), "
+        f"url('data:image/png;base64,{image_to_base64(banner_image)}');"
+        if banner_image.exists()
+        else "background: linear-gradient(135deg, #f4e5d6 0%, #ecd4c1 45%, #e8ddcf 100%);"
+    )
+
+    survey_groups = [
+        {
+            "title": "Q1. 피부 타입은 무엇인가요?",
+            "state_key": "skin_type",
+            "columns": 4,
+            "options": [
+                ("지성", "지성 피부"),
+                ("건성", "건성 피부"),
+                ("민감성", "민감성 피부"),
+                ("중성", "잘 모르겠습니다"),
+            ],
+        },
+        {
+            "title": "Q2. 평소 피부에 남는 수분감이 어느정도인가요?",
+            "state_key": "moisture_level",
+            "columns": 2,
+            "options": [
+                ("건조함", "평소 피부가 건조한 편이다."),
+                ("보통", "보통인 편이다."),
+            ],
+        },
+        {
+            "title": "Q3. 평소 피부 열감이 자주 도는 편인가요?",
+            "state_key": "temperature_level",
+            "columns": 2,
+            "options": [
+                ("높은 편", "열감이 자주 도는 편이다."),
+                ("낮은 편", "보통인 편이다."),
+            ],
+        },
+    ]
+
+    st.markdown(
+        """
+        <style>
+        .skin-survey-shell {
+            max-width: 1120px;
+            margin: 0 auto;
+        }
+        .skin-survey-progress {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.55rem;
+            margin: 0.25rem 0 2rem 0;
+        }
+        .skin-survey-progress-step {
+            width: 62px;
+            height: 62px;
+            border-radius: 999px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.9rem;
+            font-weight: 900;
+            color: #ffffff;
+            background: #d6c5b8;
+            box-shadow: 0 10px 22px rgba(181, 145, 116, 0.12);
+        }
+        .skin-survey-progress-step.is-current {
+            background: #a67c60;
+        }
+        .skin-survey-progress-line {
+            width: 116px;
+            border-top: 5px dotted #cfbeb1;
+            transform: translateY(-1px);
+        }
+        .skin-survey-hero {
+            border-radius: 40px;
+            min-height: 276px;
+            padding: 3rem 4rem;
+            background-size: cover;
+            background-position: center;
+            display: flex;
+            align-items: center;
+            margin-bottom: 2.2rem;
+            overflow: hidden;
+        }
+        .skin-survey-hero-inner {
+            max-width: 660px;
+        }
+        .skin-survey-hero-title {
+            font-size: 2.45rem;
+            line-height: 1.18;
+            font-weight: 900;
+            color: #111111;
+            letter-spacing: -0.05em;
+        }
+        .skin-survey-hero-copy {
+            margin-top: 1.2rem;
+            font-size: 1rem;
+            line-height: 1.75;
+            color: #2f2622;
+        }
+        .skin-survey-question-title {
+            font-size: 1.24rem;
+            font-weight: 900;
+            color: #1e1714;
+            margin: 0 0 1rem 0.35rem;
+            letter-spacing: -0.03em;
+        }
+        .skin-survey-button-wrap .stButton > button {
+            min-height: 72px !important;
+            border-radius: 999px !important;
+            border: 1.5px solid #d7beaa !important;
+            background: #ffffff !important;
+            color: #171310 !important;
+            font-weight: 900 !important;
+            font-size: 1rem !important;
+            box-shadow: none !important;
+            letter-spacing: -0.01em !important;
+        }
+        .skin-survey-button-wrap .stButton > button[kind="primary"] {
+            background: #fbf2e3 !important;
+            border: 1.8px solid #d1b498 !important;
+            color: #171310 !important;
+            font-weight: 900 !important;
+        }
+        .skin-survey-actions {
+            max-width: 640px;
+            margin: 0.6rem auto 0 auto;
+        }
+        .skin-survey-actions .stButton > button {
+            min-height: 68px !important;
+            border-radius: 999px !important;
+            font-size: 1.08rem !important;
+            font-weight: 900 !important;
+            box-shadow: 0 14px 28px rgba(181,145,116,0.15) !important;
+        }
+        .skin-survey-actions .stButton > button[kind="secondary"] {
+            background: #ffffff !important;
+            color: #171310 !important;
+            border: 1.5px solid #ebe1d9 !important;
+        }
+        .skin-survey-actions .stButton > button[kind="primary"] {
+            background: #a67c60 !important;
+            color: #ffffff !important;
+            border: 1.5px solid #a67c60 !important;
+        }
+        @media (max-width: 900px) {
+            .skin-survey-progress-step {
+                width: 52px;
+                height: 52px;
+                font-size: 1.45rem;
+            }
+            .skin-survey-progress-line {
+                width: 56px;
+            }
+            .skin-survey-hero {
+                min-height: 240px;
+                padding: 2.1rem 1.5rem;
+                border-radius: 28px;
+            }
+            .skin-survey-hero-title {
+                font-size: 1.9rem;
+            }
+            .skin-survey-question-title {
+                font-size: 1.08rem;
+            }
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown('<div class="skin-survey-shell">', unsafe_allow_html=True)
+    st.markdown(
+        """
+        <div class="skin-survey-progress">
+            <div class="skin-survey-progress-step is-current">1</div>
+            <div class="skin-survey-progress-line"></div>
+            <div class="skin-survey-progress-step">2</div>
+            <div class="skin-survey-progress-line"></div>
+            <div class="skin-survey-progress-step">3</div>
+            <div class="skin-survey-progress-line"></div>
+            <div class="skin-survey-progress-step">4</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        f"""
+        <div class="skin-survey-hero" style="{banner_style}">
+            <div class="skin-survey-hero-inner">
+                <div class="skin-survey-hero-title">지금 내 피부 상태에 가장 가까운 것을<br/>체크해주세요</div>
+                <div class="skin-survey-hero-copy">
+                    평소 느끼는 피부 상태와 가장 가까운 항목 하나를 선택해 주세요.<br/>
+                    추후 향 추천의 기준이 됩니다.
+                </div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    for group in survey_groups:
+        st.markdown(
+            f'<div class="skin-survey-question-title">{group["title"]}</div>',
+            unsafe_allow_html=True,
+        )
+        columns = st.columns(group["columns"], gap="medium")
+        for option_index, (option_key, option_label) in enumerate(group["options"]):
+            is_active = st.session_state.get(group["state_key"]) == option_key
+            button_label = f"✓ {option_label}" if is_active else f"○ {option_label}"
+            with columns[option_index]:
+                st.markdown('<div class="skin-survey-button-wrap">', unsafe_allow_html=True)
+                if st.button(
+                    button_label,
+                    key=f"skin_survey_{group['state_key']}_{option_index}_final",
+                    type="primary" if is_active else "secondary",
+                    use_container_width=True,
+                ):
+                    st.session_state[group["state_key"]] = option_key
+                    st.rerun()
+                st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("<div style='height:1rem;'></div>", unsafe_allow_html=True)
+
+    st.markdown('<div class="skin-survey-actions">', unsafe_allow_html=True)
+    left, right = st.columns(2, gap="large")
+    with left:
+        if st.button("← 이전", key="skin_survey_prev_final", type="secondary", use_container_width=True):
+            go_to("home")
+    with right:
+        can_continue = all(
+            [
+                bool(st.session_state.get("skin_type")),
+                bool(st.session_state.get("moisture_level")),
+                bool(st.session_state.get("temperature_level")),
+            ]
+        )
+        if st.button(
+            "다음 →",
+            key="skin_survey_next_final",
+            type="primary",
+            use_container_width=True,
+            disabled=not can_continue,
+        ):
+            go_to("face")
+    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
+def render_step_progress() -> None:
+    page = st.session_state.page
+    current_step = 1
+    if page == "face":
+        current_step = 2
+    elif page in {"loading", "result"}:
+        current_step = 3
+    elif page in {"scent_loading", "scent_result", "product_feedback"}:
+        current_step = 4
+
+    step1 = "is-current" if current_step == 1 else ""
+    step2 = "is-current" if current_step == 2 else ""
+    step3 = "is-current" if current_step == 3 else ""
+    step4 = "is-current" if current_step == 4 else ""
+    st.markdown(
+        f"""
+        <style>
+        .flow-progress-wrap-final {{
+            display:flex;
+            justify-content:center;
+            align-items:center;
+            gap:0.6rem;
+            margin:0.25rem auto 1.35rem auto;
+            padding:0.35rem 1.4rem 0.9rem 1.4rem;
+            width:fit-content;
+            border-radius:28px;
+            background:rgba(255,255,255,0.55);
+        }}
+        .flow-progress-step-final {{
+            width:64px;
+            height:64px;
+            border-radius:999px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            font-size:1.9rem;
+            font-weight:900;
+            color:#ffffff;
+            background:#d4c3b7;
+        }}
+        .flow-progress-step-final.is-current {{
+            background:#a67c60;
+        }}
+        .flow-progress-line-final {{
+            width:118px;
+            border-top:5px dotted #cfbeb1;
+            transform: translateY(-1px);
+        }}
+        @media (max-width: 900px) {{
+            .flow-progress-step-final {{
+                width:52px;
+                height:52px;
+                font-size:1.45rem;
+            }}
+            .flow-progress-line-final {{
+                width:56px;
+            }}
+        }}
+        </style>
+        <div class="flow-progress-wrap-final">
+            <div class="flow-progress-step-final {step1}">1</div>
+            <div class="flow-progress-line-final"></div>
+            <div class="flow-progress-step-final {step2}">2</div>
+            <div class="flow-progress-line-final"></div>
+            <div class="flow-progress-step-final {step3}">3</div>
+            <div class="flow-progress-line-final"></div>
+            <div class="flow-progress-step-final {step4}">4</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_signature_palette_card(personal_color: str) -> None:
+    profile = PERSONAL_COLOR_PROFILES.get(personal_color)
+    palette = PERSONAL_COLOR_PALETTES.get(personal_color)
+    theme = PERSONAL_COLOR_THEME.get(personal_color, {"accent": "#9b7a67", "button": "#9b7a67"})
+    image_path = PERSONAL_COLOR_REPRESENTATIVE_IMAGES.get(personal_color)
+    if not profile or not palette:
+        return
+
+    image_data = image_to_base64(image_path) if image_path and image_path.exists() else None
+    image_markup = (
+        f'<img class="pc-result-avatar-final" src="data:image/png;base64,{image_data}" alt="{personal_color}" />'
+        if image_data
+        else ""
+    )
+
+    keyword_pills = "".join(
+        f'<span class="pc-result-pill-final" style="background:{hex_to_rgba(theme["accent"], 0.92)};">{keyword}</span>'
+        for keyword in profile["keywords"][:5]
+    )
+    description_lines = "<br>".join(profile["description_lines"])
+    swatch_markup = "".join(
+        f'<div class="pc-result-swatch-final" style="background:{color["hex"]};"></div>'
+        for color in palette.get("colors", [])[:8]
+    )
+
+    st.markdown(
+        f"""
+        <style>
+        .pc-result-wrap-final {{
+            max-width: 560px;
+            margin: 0 auto;
+            text-align: center;
+        }}
+        .pc-result-kicker-final {{
+            font-size: 1rem;
+            color: #2f2622;
+            margin-bottom: 1rem;
+        }}
+        .pc-result-card-final {{
+            background: rgba(255,255,255,0.94);
+            border: 2px solid {hex_to_rgba(theme["accent"], 0.42)};
+            border-radius: 38px;
+            box-shadow: 0 20px 46px rgba(181,145,116,0.12);
+            padding: 1.8rem 2rem 2rem 2rem;
+        }}
+        .pc-result-avatar-final {{
+            width: 190px;
+            height: 190px;
+            object-fit: cover;
+            border-radius: 999px;
+            display:block;
+            margin: 0 auto 1rem auto;
+        }}
+        .pc-result-title-final {{
+            font-size: 2.2rem;
+            line-height: 1.2;
+            font-weight: 900;
+            color: {theme["accent"]};
+            margin-bottom: 0.9rem;
+            letter-spacing: -0.04em;
+        }}
+        .pc-result-pill-row-final {{
+            display:flex;
+            justify-content:center;
+            flex-wrap:wrap;
+            gap:0.7rem;
+            margin-bottom: 1rem;
+        }}
+        .pc-result-pill-final {{
+            display:inline-flex;
+            align-items:center;
+            justify-content:center;
+            min-width: 134px;
+            padding: 0.72rem 1rem;
+            border-radius: 999px;
+            color:#ffffff;
+            font-size:1rem;
+            font-weight:800;
+        }}
+        .pc-result-body-final {{
+            font-size: 0.98rem;
+            line-height: 1.7;
+            color: #57514c;
+            font-weight: 700;
+            margin: 0 auto 1.15rem auto;
+            max-width: 410px;
+        }}
+        .pc-result-divider-final {{
+            width: 86%;
+            margin: 0 auto 0.95rem auto;
+            border-top: 2px solid {hex_to_rgba(theme["accent"], 0.34)};
+        }}
+        .pc-result-subtitle-final {{
+            font-size: 1rem;
+            font-weight: 900;
+            color: {theme["accent"]};
+            margin-bottom: 0.95rem;
+        }}
+        .pc-result-swatch-grid-final {{
+            display:grid;
+            grid-template-columns: repeat(4, 56px);
+            justify-content:center;
+            gap: 16px 22px;
+        }}
+        .pc-result-swatch-final {{
+            width:56px;
+            height:56px;
+            border-radius:999px;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.45);
+        }}
+        @media (max-width: 760px) {{
+            .pc-result-card-final {{
+                padding: 1.4rem 1.15rem 1.6rem 1.15rem;
+                border-radius: 28px;
+            }}
+            .pc-result-avatar-final {{
+                width: 150px;
+                height: 150px;
+            }}
+            .pc-result-title-final {{
+                font-size: 1.75rem;
+            }}
+            .pc-result-pill-final {{
+                min-width: 108px;
+                font-size: 0.92rem;
+            }}
+        }}
+        </style>
+        <div class="pc-result-wrap-final">
+            <div class="pc-result-kicker-final">나의 퍼스널 컬러는 :</div>
+            <div class="pc-result-card-final">
+                {image_markup}
+                <div class="pc-result-title-final">{personal_color}</div>
+                <div class="pc-result-pill-row-final">{keyword_pills}</div>
+                <div class="pc-result-body-final">{description_lines}</div>
+                <div class="pc-result-divider-final"></div>
+                <div class="pc-result-subtitle-final">어울리는 색상</div>
+                <div class="pc-result-swatch-grid-final">{swatch_markup}</div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_result_page() -> None:
+    render_step_progress()
+    run_recommendation()
+    selected_color = st.session_state.personal_color
+    render_signature_palette_card(selected_color)
+
+    st.markdown("<div style='height:1.7rem;'></div>", unsafe_allow_html=True)
+    _, center_col, _ = st.columns([1.2, 1.1, 1.2])
+    with center_col:
+        if st.button("나에게 어울리는 향 찾기 →", key="to_scent_result_final_override", type="primary", use_container_width=True):
+            st.session_state.scent_analysis_pending = True
+            st.session_state.page = "scent_loading"
+            st.rerun()
+        st.markdown("<div style='height:0.75rem;'></div>", unsafe_allow_html=True)
+        if st.button("← 다시 진단하기", key="restart_result_final_override", use_container_width=True):
+            reset_flow()
 
 
 if __name__ == "__main__":
