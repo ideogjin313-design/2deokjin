@@ -814,6 +814,7 @@ def init_session() -> None:
         "rembg_image": None,
         "analysis_pending": False,
         "scent_analysis_pending": False,
+        "saved_upload_image_path": "",
         "prediction_confidence": None,
         "prediction_error": None,
         "recommended_labels": [],
@@ -841,6 +842,7 @@ def reset_all() -> None:
     st.session_state.rembg_image = None
     st.session_state.analysis_pending = False
     st.session_state.scent_analysis_pending = False
+    st.session_state.saved_upload_image_path = ""
     st.session_state.prediction_confidence = None
     st.session_state.prediction_error = None
     st.session_state.recommended_labels = []
@@ -1657,6 +1659,10 @@ def run_recommendation() -> None:
     st.session_state.priority_filters = merge_priority_filters()
     if st.session_state.uploaded_image is not None:
         try:
+            try:
+                st.session_state.saved_upload_image_path = save_uploaded_analysis_image(st.session_state.uploaded_image)
+            except Exception:
+                st.session_state.saved_upload_image_path = ""
             prediction = predict_personal_color_from_image(st.session_state.uploaded_image)
             st.session_state.personal_color = prediction["label"]
             st.session_state.rembg_image = prediction["rembg_image"]
@@ -2513,11 +2519,31 @@ FEEDBACK_DIR = APP_DIR / "feedback_data"
 CONSENTED_IMAGE_DIR = FEEDBACK_DIR / "consented_images"
 FEEDBACK_LOG_PATH = FEEDBACK_DIR / "feedback_log.csv"
 FEEDBACK_SHEET_WORKSHEET = "feedback"
+TEMP_UPLOAD_DIR = APP_DIR / "temp_uploaded_images"
 
 
 def ensure_feedback_dirs() -> None:
     FEEDBACK_DIR.mkdir(exist_ok=True)
     CONSENTED_IMAGE_DIR.mkdir(exist_ok=True)
+
+
+def ensure_temp_upload_dir() -> None:
+    TEMP_UPLOAD_DIR.mkdir(exist_ok=True)
+
+
+def save_uploaded_analysis_image(uploaded_file) -> str:
+    ensure_temp_upload_dir()
+    original_name = getattr(uploaded_file, "name", "") or "camera_capture.png"
+    original_suffix = Path(original_name).suffix or ".png"
+    original_stem = Path(original_name).stem or "upload"
+    safe_stem = normalize_asset_key(original_stem) or "upload"
+    filename = (
+        f"analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}_"
+        f"{safe_stem}_{time.time_ns() % 1000000000}{original_suffix}"
+    )
+    target_path = TEMP_UPLOAD_DIR / filename
+    target_path.write_bytes(uploaded_file.getvalue())
+    return str(target_path)
 
 
 def get_feedback_sheet_settings() -> Optional[Dict[str, object]]:
