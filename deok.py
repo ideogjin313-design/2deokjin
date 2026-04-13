@@ -672,6 +672,60 @@ def _load_state(model: nn.Module, pattern: str) -> nn.Module:
     return model
 
 
+MAX_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024
+MAX_IMAGE_SIDE = 1280
+
+
+def _read_image_bytes(image_source) -> bytes:
+    if hasattr(image_source, "getvalue"):
+        data = image_source.getvalue()
+        if isinstance(data, bytes):
+            return data
+
+    if isinstance(image_source, (bytes, bytearray)):
+        return bytes(image_source)
+
+    if hasattr(image_source, "read"):
+        if hasattr(image_source, "seek"):
+            image_source.seek(0)
+        data = image_source.read()
+        if hasattr(image_source, "seek"):
+            image_source.seek(0)
+        return data if isinstance(data, bytes) else bytes(data)
+
+    source_path = Path(image_source)
+    return source_path.read_bytes()
+
+
+def validate_uploaded_image(image_source) -> Optional[str]:
+    try:
+        image_bytes = _read_image_bytes(image_source)
+    except Exception:
+        return "이미지를 읽지 못했어요. JPG 또는 PNG 파일로 다시 업로드해 주세요."
+
+    if len(image_bytes) > MAX_UPLOAD_SIZE_BYTES:
+        max_size_mb = MAX_UPLOAD_SIZE_BYTES / (1024 * 1024)
+        return f"이미지 용량이 너무 커요. {max_size_mb:.0f}MB 이하 파일을 업로드해 주세요."
+
+    try:
+        with Image.open(BytesIO(image_bytes)) as image:
+            image.verify()
+    except Exception:
+        return "지원되지 않는 이미지이거나 파일이 손상되었어요. 다른 사진으로 다시 시도해 주세요."
+
+    return None
+
+
+def load_prepared_image(image_source) -> Image.Image:
+    image_bytes = _read_image_bytes(image_source)
+    image = Image.open(BytesIO(image_bytes)).convert("RGB")
+
+    if max(image.size) > MAX_IMAGE_SIDE:
+        image.thumbnail((MAX_IMAGE_SIDE, MAX_IMAGE_SIDE), Image.Resampling.LANCZOS)
+
+    return image
+
+
 @st.cache_data(show_spinner=False)
 def load_personal_color_classes() -> List[str]:
     classes = np.load(APP_DIR / "stacking_classes.npy", allow_pickle=True)
@@ -706,21 +760,24 @@ def load_personal_color_assets() -> Dict[str, object]:
 
 def predict_personal_color_from_image(image_source) -> Dict[str, object]:
     assets = load_personal_color_assets()
-    image = Image.open(image_source).convert("RGB")
+    image = load_prepared_image(image_source)
 
+    rembg_image = image
     if remove is not None:
-        image_buffer = BytesIO()
-        image.save(image_buffer, format="PNG")
-        output_data = remove(image_buffer.getvalue())
-        rembg_image = Image.open(BytesIO(output_data))
-        if rembg_image.mode == "RGBA":
-            background = Image.new("RGB", rembg_image.size, (0, 0, 0))
-            background.paste(rembg_image, mask=rembg_image.split()[3])
-            rembg_image = background
-        else:
-            rembg_image = rembg_image.convert("RGB")
-    else:
-        rembg_image = image
+        try:
+            image_buffer = BytesIO()
+            image.save(image_buffer, format="PNG")
+            output_data = remove(image_buffer.getvalue())
+            candidate_image = Image.open(BytesIO(output_data))
+            if candidate_image.mode == "RGBA":
+                background = Image.new("RGB", candidate_image.size, (0, 0, 0))
+                background.paste(candidate_image, mask=candidate_image.split()[3])
+                rembg_image = background
+            else:
+                rembg_image = candidate_image.convert("RGB")
+        except Exception:
+            # Fall back to the resized source image if background removal fails.
+            rembg_image = image
 
     image_tensor = assets["transform"](rembg_image).unsqueeze(0)
 
@@ -4890,15 +4947,29 @@ def render_face_page() -> None:
     with tab1:
         uploaded = st.file_uploader("얼굴 사진 업로드", type=["jpg", "jpeg", "png"])
         if uploaded is not None:
-            st.session_state.uploaded_image = uploaded
-            st.session_state.rembg_image = None
-            st.session_state.prediction_error = None
+            validation_error = validate_uploaded_image(uploaded)
+            if validation_error:
+                st.session_state.uploaded_image = None
+                st.session_state.rembg_image = None
+                st.session_state.prediction_error = validation_error
+            else:
+                st.session_state.uploaded_image = uploaded
+                st.session_state.rembg_image = None
+                st.session_state.prediction_error = None
     with tab2:
         camera_photo = st.camera_input("카메라 촬영")
         if camera_photo is not None:
-            st.session_state.uploaded_image = camera_photo
-            st.session_state.rembg_image = None
-            st.session_state.prediction_error = None
+            validation_error = validate_uploaded_image(camera_photo)
+            if validation_error:
+                st.session_state.uploaded_image = None
+                st.session_state.rembg_image = None
+                st.session_state.prediction_error = validation_error
+            else:
+                st.session_state.uploaded_image = camera_photo
+                st.session_state.rembg_image = None
+                st.session_state.prediction_error = None
+    if st.session_state.prediction_error:
+        st.error(st.session_state.prediction_error)
     if st.session_state.uploaded_image is not None:
         st.markdown('<div class="upload-preview">', unsafe_allow_html=True)
         st.image(st.session_state.uploaded_image, caption="업로드된 사진", width=520)
@@ -8938,6 +9009,128 @@ def render_integrated_feedback_section() -> None:
     )
     st.link_button("구글 폼으로 피드백 남기기 →", GOOGLE_FEEDBACK_FORM_URL, use_container_width=True)
     st.markdown("</div>", unsafe_allow_html=True)
+ 
+
+def render_face_page() -> None:
+    if st.session_state.analysis_pending:
+        st.session_state.page = "loading"
+        st.rerun()
+
+    render_step_progress()
+    st.markdown(
+        """
+        <style>
+        .face-upload-shell {
+            max-width: 820px;
+            margin: 0 auto;
+        }
+        .face-upload-title {
+            text-align: center;
+            font-size: 2.6rem;
+            line-height: 1.2;
+            font-weight: 900;
+            color: #2f2622;
+            margin-bottom: 0.8rem;
+        }
+        .face-upload-desc {
+            text-align: center;
+            color: #7d7068;
+            font-size: 1.02rem;
+            line-height: 1.8;
+            margin-bottom: 1.4rem;
+        }
+        .face-upload-note {
+            background: rgba(253, 250, 246, 0.98);
+            border: 1.4px solid #ecd8cd;
+            border-radius: 18px;
+            padding: 1rem 1.1rem;
+            color: #6f645b;
+            line-height: 1.8;
+            margin-bottom: 1.2rem;
+        }
+        .face-upload-status {
+            margin-top: 0.8rem;
+            color: #8a7669;
+            font-size: 0.95rem;
+            line-height: 1.7;
+            text-align: center;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown('<div class="face-upload-shell">', unsafe_allow_html=True)
+    st.markdown('<div class="face-upload-title">얼굴 사진을 올려주세요</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="face-upload-desc">업로드한 사진으로 퍼스널 컬러를 분석하고 향수 추천 결과를 보여드릴게요.</div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        """
+        <div class="face-upload-note">
+            정면 사진, 밝은 조명, 단순한 배경의 사진이 가장 안정적으로 분석돼요.<br/>
+            JPG/PNG만 지원하고, 5MB 이하 이미지를 권장합니다.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    tab1, tab2 = st.tabs(["사진 업로드", "카메라 촬영"])
+    with tab1:
+        uploaded = st.file_uploader("얼굴 사진 업로드", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
+        if uploaded is not None:
+            validation_error = validate_uploaded_image(uploaded)
+            if validation_error:
+                st.session_state.uploaded_image = None
+                st.session_state.rembg_image = None
+                st.session_state.prediction_error = validation_error
+            else:
+                st.session_state.uploaded_image = uploaded
+                st.session_state.rembg_image = None
+                st.session_state.prediction_error = None
+    with tab2:
+        camera_photo = st.camera_input("카메라 촬영", label_visibility="collapsed")
+        if camera_photo is not None:
+            validation_error = validate_uploaded_image(camera_photo)
+            if validation_error:
+                st.session_state.uploaded_image = None
+                st.session_state.rembg_image = None
+                st.session_state.prediction_error = validation_error
+            else:
+                st.session_state.uploaded_image = camera_photo
+                st.session_state.rembg_image = None
+                st.session_state.prediction_error = None
+
+    if st.session_state.prediction_error:
+        st.error(st.session_state.prediction_error)
+
+    if st.session_state.uploaded_image is not None:
+        _, preview_center, _ = st.columns([0.85, 1.4, 0.85])
+        with preview_center:
+            st.image(st.session_state.uploaded_image, caption="업로드한 사진", width=520)
+        st.markdown(
+            '<div class="face-upload-status">사진 업로드가 완료됐어요. 결과 보기를 누르면 분석이 시작됩니다.</div>',
+            unsafe_allow_html=True,
+        )
+
+    st.markdown("</div>", unsafe_allow_html=True)
+    left, right = st.columns(2, gap="large")
+    with left:
+        if st.button("이전", key="face_prev_layout_override_safe", use_container_width=True):
+            go_to("temperature")
+    with right:
+        result_button_clicked = st.button(
+            "결과 보기",
+            key="face_next_layout_override_safe",
+            type="primary",
+            use_container_width=True,
+            disabled=st.session_state.uploaded_image is None or bool(st.session_state.prediction_error),
+        )
+        if result_button_clicked:
+            st.session_state.analysis_pending = True
+            st.session_state.page = "loading"
+            st.rerun()
 
 
 if __name__ == "__main__":
