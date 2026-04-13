@@ -2641,6 +2641,69 @@ def submit_integrated_feedback(actual_label: str, is_match: bool, consent: bool)
         )
 
 
+    st.markdown("<div style='height:1.6rem;'></div>", unsafe_allow_html=True)
+    _, consent_center, _ = st.columns([1.05, 2.3, 1.05])
+    with consent_center:
+        st.markdown(
+            """
+            <style>
+            .home-consent-wrap [data-testid="stExpander"] {
+                border: 1.2px solid #dcc7b6 !important;
+                border-radius: 22px !important;
+                background: rgba(255, 251, 247, 0.92) !important;
+                box-shadow: 0 14px 28px rgba(199,171,145,0.08) !important;
+            }
+            .home-consent-wrap [data-testid="stExpander"] details {
+                background: transparent !important;
+                border-radius: 22px !important;
+            }
+            .home-consent-wrap [data-testid="stExpander"] summary {
+                padding: 0.9rem 1rem !important;
+                color: #2f2622 !important;
+                font-weight: 800 !important;
+            }
+            .home-consent-title {
+                color: #a86a3c;
+                font-weight: 800;
+                letter-spacing: 0.04em;
+                margin-bottom: 0.8rem;
+            }
+            .home-consent-body {
+                color: #6d5b4f;
+                line-height: 1.85;
+                font-size: 0.98rem;
+            }
+            .home-consent-body strong {
+                color: #2f2622;
+            }
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
+        st.markdown('<div class="home-consent-wrap">', unsafe_allow_html=True)
+        with st.expander("📋 피드백 수집 안내", expanded=False):
+            st.markdown(
+                """
+                <div class="home-consent-title">📋 수집 안내</div>
+                <div class="home-consent-body">
+                    서비스 개선을 위해 아래 정보를 수집합니다.<br/><br/>
+                    <strong>[수집 항목]</strong><br/>
+                    - 퍼스널컬러 진단 결과<br/><br/>
+                    <strong>[수집 목적]</strong><br/>
+                    - AI 모델 정확도 개선<br/>
+                    - 향 추천 서비스 품질 향상<br/><br/>
+                    <strong>[보관 및 활용]</strong><br/>
+                    - 수집된 정보는 서비스 개선 목적으로만 사용됩니다<br/>
+                    - 제3자에게 제공되지 않습니다<br/>
+                    - 업로드하신 사진은 저장되지 않습니다<br/>
+                    - 개인 식별 정보(이름, 연락처 등)는 수집하지 않습니다.
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        st.markdown("</div>", unsafe_allow_html=True)
+
+
 def render_integrated_feedback_section() -> None:
     ensure_integrated_feedback_state()
     predicted_label = st.session_state.personal_color
@@ -8668,14 +8731,14 @@ def render_integrated_feedback_section() -> None:
         """
         <div class="feedback-form-card">
             <div class="feedback-form-kicker">FEEDBACK</div>
-            <div class="feedback-form-title">추가 피드백은 구글 폼으로 남겨주세요.</div>
+            <div class="feedback-form-title">피드백은 구글 폼으로 남겨주세요.</div>
             <div class="feedback-form-copy">
                 결과를 사용해보시며 느낀 점이나 개선되었으면 하는 부분이 있다면 구글 폼으로 의견을 남겨주세요.
                 남겨주신 피드백은 서비스 완성도를 높이는 데 큰 도움이 됩니다.
             </div>
             <div class="feedback-form-alert">
                 퍼스널 컬러 분석 개선을 위해 얼굴 이미지(셀카)를 제공해주세요 !<br/>
-                :rotating_light: 제공해주신 이미지는 머신러닝 모델 학습용으로만 사용됩니다.
+                🚨 제공해주신 이미지는 머신러닝 모델 학습용으로만 사용됩니다.
             </div>
             <div class="feedback-form-note">
                 분석 결과가 얼마나 잘 맞았는지, 어떤 점이 아쉬웠는지, 추가되면 좋을 기능이 무엇인지 자유롭게 적어주세요.
@@ -8686,10 +8749,6 @@ def render_integrated_feedback_section() -> None:
         unsafe_allow_html=True,
     )
     st.link_button("구글 폼으로 피드백 남기기 →", GOOGLE_FEEDBACK_FORM_URL, use_container_width=True)
-    st.markdown(
-        f'<div class="feedback-form-link-note">폼 링크: {GOOGLE_FEEDBACK_FORM_URL}</div>',
-        unsafe_allow_html=True,
-    )
     st.markdown("</div>", unsafe_allow_html=True)
 
 
