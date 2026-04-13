@@ -3430,7 +3430,12 @@ def render_signature_palette_card(personal_color: str) -> None:
     )
     description_lines = "<br>".join(profile["description_lines"])
     swatch_markup = "".join(
-        f'<div class="pc-result-swatch-final" style="background:{color["hex"]};"></div>'
+        f"""
+        <div class="pc-result-swatch-item-final">
+            <div class="pc-result-swatch-final" style="background:{color["hex"]};"></div>
+            <div class="pc-result-swatch-name-final">{color.get("name", "")}</div>
+        </div>
+        """
         for color in palette.get("colors", [])[:8]
     )
 
@@ -3509,15 +3514,29 @@ def render_signature_palette_card(personal_color: str) -> None:
         }}
         .pc-result-swatch-grid-final {{
             display:grid;
-            grid-template-columns: repeat(4, 56px);
+            grid-template-columns: repeat(4, minmax(56px, 78px));
             justify-content:center;
             gap: 16px 22px;
+        }}
+        .pc-result-swatch-item-final {{
+            display:flex;
+            flex-direction:column;
+            align-items:center;
+            gap:0.45rem;
         }}
         .pc-result-swatch-final {{
             width:56px;
             height:56px;
             border-radius:999px;
             box-shadow: inset 0 0 0 1px rgba(255,255,255,0.45);
+        }}
+        .pc-result-swatch-name-final {{
+            font-size:0.78rem;
+            line-height:1.35;
+            color:#7a6c63;
+            font-weight:700;
+            text-align:center;
+            word-break:keep-all;
         }}
         @media (max-width: 760px) {{
             .pc-result-card-final {{
