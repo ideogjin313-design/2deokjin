@@ -5,3 +5,4 @@ torch
 torchvision
 rembg
 onnxruntime
+scikit-learn==1.8.0
