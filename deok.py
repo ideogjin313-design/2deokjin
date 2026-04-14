@@ -2085,7 +2085,8 @@ def render_scent_result_page() -> None:
     with prev_col:
         if st.button("이전 결과", key="back_to_result_split", use_container_width=True):
             st.session_state.scent_analysis_pending = False
-            go_to("result")
+            st.session_state.page = "result"
+            st.rerun()
     with restart_col:
         if st.button("처음부터 다시", key="restart_scent_split", use_container_width=True):
             reset_all()
@@ -2300,10 +2301,23 @@ def render_product_feedback_page() -> None:
     left_btn, center_btn, right_btn = st.columns(3)
     with left_btn:
         if st.button("이전", key="back_to_scent_result_final", use_container_width=True):
-            go_to("scent_result")
+            st.session_state.scent_analysis_pending = False
+            st.session_state.page = "scent_result"
+            st.rerun()
     with center_btn:
         if st.button("사진 다시 선택", key="back_to_face_final", use_container_width=True):
-            reset_flow("face")
+            st.session_state.uploaded_image = None
+            st.session_state.rembg_image = None
+            st.session_state.analysis_pending = False
+            st.session_state.scent_analysis_pending = False
+            st.session_state.saved_upload_image_path = ""
+            st.session_state.prediction_confidence = None
+            st.session_state.prediction_error = None
+            st.session_state.recommended_labels = []
+            st.session_state.recommended_label = None
+            st.session_state.recommended_products = []
+            st.session_state.page = "face"
+            st.rerun()
     with right_btn:
         if st.button("처음부터 다시", key="restart_product_feedback_final", type="primary", use_container_width=True):
             reset_all()
@@ -3385,7 +3399,18 @@ def render_result_page() -> None:
             st.rerun()
         st.markdown("<div style='height:0.75rem;'></div>", unsafe_allow_html=True)
         if st.button("← 다시 진단하기", key="restart_result_final_override", use_container_width=True):
-            reset_flow()
+            st.session_state.uploaded_image = None
+            st.session_state.rembg_image = None
+            st.session_state.analysis_pending = False
+            st.session_state.scent_analysis_pending = False
+            st.session_state.saved_upload_image_path = ""
+            st.session_state.prediction_confidence = None
+            st.session_state.prediction_error = None
+            st.session_state.recommended_labels = []
+            st.session_state.recommended_label = None
+            st.session_state.recommended_products = []
+            st.session_state.page = "face"
+            st.rerun()
 
 
 if __name__ == "__main__":
