@@ -11,14 +11,12 @@ from io import BytesIO
 import os
 from pathlib import Path
 import time
-from textwrap import dedent
 from typing import Dict, List, Optional
 import unicodedata
 
 import numpy as np
 import pickle
 import streamlit as st
-import streamlit.components.v1 as components
 import torch
 import torch.nn as nn
 from PIL import Image
@@ -35,22 +33,6 @@ st.set_page_config(
     page_icon="🌿",
     layout="wide",
 )
-
-
-STEP_PAGES = ["skin", "moisture", "temperature", "face", "loading", "result"]
-STEP_LABELS = {
-    "skin": "피부타입",
-    "moisture": "수분감",
-    "temperature": "온도",
-    "face": "얼굴 진단",
-    "loading": "분석 중",
-    "result": "결과",
-}
-
-PAGE_PROGRESS_ALIAS = {
-    "scent_loading": "result",
-    "scent_result": "result",
-}
 
 
 SKIN_OPTIONS: List[Dict[str, object]] = [
@@ -481,19 +463,6 @@ def should_use_background_removal() -> bool:
 
     return True
 
-PERSONAL_COLOR_PALETTE_IMAGES = {
-    "봄웜라이트": APP_DIR / "색상팔레트_봄웜라이트.png",
-    "봄웜브라이트": APP_DIR / "색상팔레트_봄웜브라이트.png",
-    "여름쿨라이트": APP_DIR / "색상팔레트_여름쿨라이트.png",
-    "여름쿨브라이트": APP_DIR / "색상팔레트_여름쿨브라이트.png",
-    "여름쿨뮤트": APP_DIR / "색상팔레트_여름쿨뮤트.png",
-    "가을웜소프트": APP_DIR / "색상팔레트_가을웜소프트.png",
-    "가을웜뮤트": APP_DIR / "색상팔레트_가을웜뮤트.png",
-    "가을웜딥": APP_DIR / "색상팔레트_가을웜딥.png",
-    "겨울쿨브라이트": APP_DIR / "색상팔레트_겨울쿨브라이트.png",
-    "겨울쿨딥": APP_DIR / "색상팔레트_겨울쿨딥.png",
-}
-
 PERSONAL_COLOR_REPRESENTATIVE_IMAGES = {
     "봄웜라이트": APP_DIR / "대표이미지_봄웜라이트_가공.png",
     "봄웜브라이트": APP_DIR / "대표이미지_봄웜브라이트_가공.png",
@@ -871,9 +840,18 @@ def reset_all() -> None:
     st.session_state.priority_filters = OrderedDict()
 
 
-def current_step_index() -> int:
-    current_page = PAGE_PROGRESS_ALIAS.get(st.session_state.page, st.session_state.page)
-    return STEP_PAGES.index(current_page) if current_page in STEP_PAGES else -1
+def reset_flow(target_page: str = "face") -> None:
+    st.session_state.uploaded_image = None
+    st.session_state.rembg_image = None
+    st.session_state.analysis_pending = False
+    st.session_state.scent_analysis_pending = False
+    st.session_state.saved_upload_image_path = ""
+    st.session_state.prediction_confidence = None
+    st.session_state.prediction_error = None
+    st.session_state.recommended_labels = []
+    st.session_state.recommended_label = None
+    st.session_state.recommended_products = []
+    go_to(target_page)
 
 
 def get_option_by_key(options: List[Dict[str, object]], key: Optional[str]) -> Optional[Dict[str, object]]:
@@ -897,28 +875,6 @@ def merge_priority_filters() -> OrderedDict[str, str]:
             if column not in merged:
                 merged[column] = value
     return merged
-
-
-def explain_priority_conflicts() -> List[str]:
-    messages: List[str] = []
-    labels = [
-        ("피부타입", get_option_by_key(SKIN_OPTIONS, st.session_state.skin_type)),
-        ("수분감", get_option_by_key(MOISTURE_OPTIONS, st.session_state.moisture_level)),
-        ("피부 온도", get_option_by_key(TEMPERATURE_OPTIONS, st.session_state.temperature_level)),
-    ]
-    for i, (first_name, first_item) in enumerate(labels):
-        if not first_item:
-            continue
-        first_filters = first_item["filters"]
-        for second_name, second_item in labels[i + 1 :]:
-            if not second_item:
-                continue
-            for column, second_value in second_item["filters"].items():
-                if column in first_filters and first_filters[column] != second_value:
-                    messages.append(
-                        f"{column}: `{first_name}` 우선 적용으로 `{first_filters[column]}`을 유지하고 `{second_name}`의 `{second_value}`는 제외했어요."
-                    )
-    return messages
 
 
 def apply_global_style() -> None:
@@ -1379,19 +1335,6 @@ def apply_global_style() -> None:
     )
 
 
-def render_hero(kicker: str, title: str, description: str) -> None:
-    st.markdown(
-        f"""
-        <div class="hero-card">
-            <div style="color:#a06f50; font-weight:800; letter-spacing:0.16em; font-size:0.9rem;">{kicker}</div>
-            <div style="font-size:2.8rem; line-height:1.2; font-weight:800; margin-top:1rem; color:#2f2622; white-space:pre-line;">{title}</div>
-            <div style="font-size:1.08rem; line-height:1.8; color:#7a6d64; margin-top:1.25rem; white-space:pre-line;">{description}</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
 def derive_label_from_personal_color(personal_color: str) -> str:
     return LABEL_BY_PERSONAL_COLOR[personal_color]
 
@@ -1771,14 +1714,6 @@ def build_product_note_sections_markup(product_name: str, notes_text: str = "") 
     return "".join(sections)
 
 
-def build_product_description_markup(product_name: str) -> str:
-    detail_info = get_product_detail_info(product_name)
-    description = detail_info.get("description", "").strip()
-    if not description:
-        return ""
-    return f'<div class="featured-product-description">{description}</div>'
-
-
 def get_product_image_path(product_name: str) -> Optional[Path]:
     image_extensions = {".png", ".jpg", ".jpeg", ".webp"}
     product_key = normalize_asset_key(product_name)
@@ -1831,63 +1766,6 @@ def build_product_image_markup(product_name: str, css_class: str = "product-imag
     )
 
 
-def get_palette_caption(palette: Dict[str, object], profile: Dict[str, object]) -> str:
-    color_names = [color.get("name", "").strip() for color in palette.get("colors", []) if color.get("name", "").strip()]
-    if color_names:
-        return " / ".join(color_names[:4])
-    keywords = [keyword.replace("#", "") for keyword in profile.get("keywords", []) if keyword]
-    return " / ".join(keywords[:4])
-
-
-def render_share_actions(personal_color: str, recommended_labels: List[str], featured_product: Dict[str, str]) -> None:
-    label_names = [SCENT_LABEL_GUIDE.get(label, (label, ""))[0] for label in recommended_labels[:3]]
-    share_text = (
-        f"유쏘풀 향 추천 결과\n"
-        f"퍼스널 컬러: {personal_color}\n"
-        f"추천 향: {', '.join(label_names)}\n"
-        f"추천 제품: {featured_product['name']}"
-    )
-    share_text_js = share_text.replace("\\", "\\\\").replace("`", "\\`")
-    components.html(
-        f"""
-        <div style="text-align:center; margin:-0.3rem 0 1.2rem 0;">
-            <button id="share-result-btn" style="
-                min-width:240px;
-                border:none;
-                border-radius:999px;
-                padding:0.95rem 1.4rem;
-                background:#ce2f97;
-                color:white;
-                font-weight:800;
-                font-size:1.02rem;
-                cursor:pointer;
-                box-shadow:0 14px 24px rgba(122,109,100,0.18);
-            ">결과 공유하기 →</button>
-            <div id="share-result-message" style="margin-top:0.7rem; color:#8b674d; font-size:0.92rem;"></div>
-        </div>
-        <script>
-        const shareText = `{share_text_js}`;
-        const shareUrl = window.location.href;
-        const msg = document.getElementById("share-result-message");
-        document.getElementById("share-result-btn").onclick = async () => {{
-            try {{
-                if (navigator.share) {{
-                    await navigator.share({{ title: "유쏘풀 향 추천 결과", text: shareText, url: shareUrl }});
-                    msg.textContent = "공유 창을 열었어요.";
-                }} else {{
-                    await navigator.clipboard.writeText(shareText + "\\n" + shareUrl);
-                    msg.textContent = "공유 기능을 지원하지 않아 문구와 링크를 복사했어요.";
-                }}
-            }} catch (error) {{
-                msg.textContent = "공유가 취소되었거나 브라우저에서 제한되었어요.";
-            }}
-        }};
-        </script>
-        """,
-        height=84,
-    )
-
-
 def build_skin_profile_phrase() -> str:
     skin_type = st.session_state.skin_type
     moisture = st.session_state.moisture_level
@@ -1907,36 +1785,7 @@ def build_skin_profile_recommendation_line() -> str:
     return "현재 피부 상태에 맞춰 지속력이 좋은 제품을 추천해드릴게요."
 
 
-def render_result_featured_product_card(personal_color: str, featured_product: Dict[str, str]) -> None:
-    theme = PERSONAL_COLOR_THEME.get(personal_color, {"accent": "#a97757", "button": "#a97757"})
-    image_markup = build_product_image_markup(featured_product["name"], "featured-product-image")
-    skin_profile = build_skin_profile_phrase()
-    skin_recommendation_line = build_skin_profile_recommendation_line()
-    note_sections_markup = build_product_note_sections_markup(featured_product["name"], featured_product["notes"])
-    body_markup = "".join(
-        part
-        for part in [
-            f'<div style="font-size:1.42rem; font-weight:800; color:#2f2622; margin:0.2rem 0 0.55rem 0;">{featured_product["name"]}</div>',
-            f'<div class="featured-product-note">{featured_product["notes"]}</div>',
-            f'<div class="featured-product-note" style="margin-top:0.4rem;">{skin_profile}</div>',
-            f'<div class="featured-product-note" style="margin-top:0.35rem;">{skin_recommendation_line}</div>',
-            image_markup,
-            f'<div class="product-note-grid" style="display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:0.75rem; margin-top:1rem;">{note_sections_markup}</div>',
-        ]
-        if part
-    )
-    st.markdown(
-        f"""
-        <div class="result-featured-product-card" style="border-color:{hex_to_rgba(theme['accent'], 0.24)};">
-            <div style="font-size:0.92rem; font-weight:700; color:{theme['accent']}; margin-bottom:0.55rem;">유쏘풀 추천 향수</div>
-            {body_markup}
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-def render_fragrance_section(personal_color: str, recommended_labels: List[str], products: List[Dict[str, str]]) -> None:
+def render_fragrance_section(personal_color: str, recommended_labels: List[str]) -> None:
     mood = PERSONAL_COLOR_MOOD_GUIDE.get(personal_color)
     theme = PERSONAL_COLOR_THEME.get(personal_color, {"accent": "#a97757", "button": "#a97757"})
     skin_profile = build_skin_profile_phrase()
@@ -1964,10 +1813,7 @@ def render_fragrance_section(personal_color: str, recommended_labels: List[str],
         </div>
         """
 
-    label_names = []
-    for label in recommended_labels[:3]:
-        label_names.append(label)
-    summary_labels = ", ".join(label_names)
+    summary_labels = ", ".join(recommended_labels[:3])
 
     st.markdown(
         f"""
@@ -2109,71 +1955,6 @@ def save_integrated_feedback_image(uploaded_file, user_label: str) -> str:
     return str(target_path)
 
 
-def render_feedback_choice_buttons(state_key: str, options: List[str], key_prefix: str) -> None:
-    columns = st.columns(len(options))
-    for index, (column, option) in enumerate(zip(columns, options)):
-        is_active = st.session_state.get(state_key) == option
-        with column:
-            if st.button(
-                option,
-                key=f"{key_prefix}_{state_key}_{index}",
-                type="primary" if is_active else "secondary",
-                use_container_width=True,
-            ):
-                st.session_state[state_key] = option
-                st.rerun()
-
-
-def toggle_choice_info(state_key: str, item_key: str) -> None:
-    info_state_key = f"{state_key}_info_key"
-    current = st.session_state.get(info_state_key)
-    st.session_state[info_state_key] = None if current == item_key else item_key
-
-
-def get_choice_display_content(state_key: str, index: int) -> Dict[str, str]:
-    content_map = {
-        "skin_type": [
-            {"title": "지성", "hint": "유분이 비교적 많이 느껴지는 피부예요."},
-            {"title": "건성", "hint": "건조함과 당김이 자주 느껴지는 피부예요."},
-            {"title": "민감성", "hint": "자극과 붉어짐에 예민한 피부예요."},
-            {"title": "잘 모르겠어요", "hint": "아직 피부 타입을 딱 정하기 어려운 편이에요."},
-        ],
-        "moisture_level": [
-            {"title": "건조하지 않아요", "hint": "수분감이 비교적 유지되는 편이에요."},
-            {"title": "건조해요", "hint": "수분이 쉽게 날아가고 메마름이 느껴져요."},
-        ],
-        "temperature_level": [
-            {"title": "열감이 높은 편", "hint": "피부에 열감이 오래 남는 편이에요."},
-            {"title": "열감이 낮은 편", "hint": "차분하고 서늘하게 느껴지는 편이에요."},
-        ],
-    }
-    options = content_map.get(state_key, [])
-    if 0 <= index < len(options):
-        return options[index]
-    return {"title": "", "hint": ""}
-
-
-def ensure_integrated_feedback_state() -> None:
-    uploaded_name = getattr(st.session_state.uploaded_image, "name", "camera_capture")
-    context_key = f"{uploaded_name}:{st.session_state.personal_color}"
-    defaults = {
-        "feedback_context_key": context_key,
-        "feedback_match_answer": "맞아요",
-        "feedback_actual_label": st.session_state.personal_color,
-        "feedback_consent_answer": "비동의",
-        "feedback_comment": "",
-        "feedback_saved": False,
-        "feedback_saved_message": None,
-    }
-    if st.session_state.get("feedback_context_key") != context_key:
-        for key, value in defaults.items():
-            st.session_state[key] = value
-        return
-    for key, value in defaults.items():
-        if key not in st.session_state:
-            st.session_state[key] = value
-
-
 def render_loading_page() -> None:
     if st.session_state.uploaded_image is None:
         go_to("face")
@@ -2284,26 +2065,26 @@ def render_scent_loading_page() -> None:
         unsafe_allow_html=True,
     )
     time.sleep(0.9)
+    st.session_state.scent_analysis_pending = False
     st.session_state.page = "scent_result"
     st.rerun()
 
 
-PAGE_PROGRESS_ALIAS["product_feedback"] = "result"
 
 
 def render_scent_result_page() -> None:
     render_step_progress()
     run_recommendation()
     selected_color = st.session_state.personal_color
-    products = st.session_state.recommended_products or PRODUCT_LIBRARY[st.session_state.recommended_label]
     recommended_labels = st.session_state.recommended_labels
 
-    render_fragrance_section(selected_color, recommended_labels, products)
+    render_fragrance_section(selected_color, recommended_labels)
 
     st.markdown("<div style='height:2.35rem;'></div>", unsafe_allow_html=True)
     prev_col, restart_col, next_col = st.columns([1, 1, 1], gap="medium")
     with prev_col:
         if st.button("이전 결과", key="back_to_result_split", use_container_width=True):
+            st.session_state.scent_analysis_pending = False
             go_to("result")
     with restart_col:
         if st.button("처음부터 다시", key="restart_scent_split", use_container_width=True):
@@ -2490,12 +2271,6 @@ def render_native_featured_product_card(personal_color: str, featured_product: D
         f'<div class="featured-product-media-frame">{image_markup}</div>' if image_markup else "",
         f'<div class="product-note-grid">{note_sections_markup}</div>',
     ]
-    if not image_markup:
-        body_parts.extend(
-            [
-                "",
-            ]
-        )
     featured_body = "".join([part for part in body_parts if part])
 
     st.markdown(
@@ -2514,7 +2289,6 @@ def render_product_feedback_page() -> None:
     run_recommendation()
     selected_color = st.session_state.personal_color
     products = st.session_state.recommended_products or PRODUCT_LIBRARY[st.session_state.recommended_label]
-    recommended_labels = st.session_state.recommended_labels
 
     featured_product = pick_featured_product(products)
     if featured_product:
@@ -2529,7 +2303,7 @@ def render_product_feedback_page() -> None:
             go_to("scent_result")
     with center_btn:
         if st.button("사진 다시 선택", key="back_to_face_final", use_container_width=True):
-            go_to("face")
+            reset_flow("face")
     with right_btn:
         if st.button("처음부터 다시", key="restart_product_feedback_final", type="primary", use_container_width=True):
             reset_all()
@@ -2754,40 +2528,6 @@ def save_integrated_feedback_log(
             writer.writeheader()
         writer.writerow(row)
     return str(FEEDBACK_LOG_PATH)
-
-
-def submit_integrated_feedback(actual_label: str, is_match: bool, consent: bool) -> None:
-    uploaded_file = st.session_state.uploaded_image
-    if uploaded_file is None:
-        return
-
-    saved_image_path = ""
-    if consent:
-        saved_image_path = save_integrated_feedback_image(uploaded_file, actual_label)
-
-    feedback_log_destination = save_integrated_feedback_log(
-        uploaded_name=getattr(uploaded_file, "name", "camera_capture"),
-        predicted_label=st.session_state.personal_color,
-        predicted_confidence=st.session_state.prediction_confidence,
-        user_label=actual_label,
-        is_match=is_match,
-        consent=consent,
-        feedback_comment=st.session_state.get("feedback_comment", "").strip(),
-        saved_image_path=saved_image_path,
-    )
-
-    st.session_state.feedback_saved = True
-    if consent:
-        st.session_state.feedback_saved_message = (
-            "피드백과 이미지 사용 동의가 저장되었어요.\n"
-            f"피드백 저장 위치: {feedback_log_destination}\n"
-            f"동의 이미지 저장 위치: {saved_image_path}"
-        )
-    else:
-        st.session_state.feedback_saved_message = (
-            "피드백이 저장되었고 이미지는 학습 데이터로 사용하지 않도록 기록했어요.\n"
-            f"피드백 저장 위치: {feedback_log_destination}"
-        )
 
 
 GOOGLE_FEEDBACK_FORM_URL = "https://forms.gle/JZ7p5CX2uaiVH2rVA"
