@@ -604,6 +604,11 @@ SCENT_LABEL_FALLBACKS = {
     "Ozonic": ["Aldehydic", "Minty"],
 }
 
+SCENT_LABEL_IMAGE_ALIASES = {
+    "Herbal": ["Herb"],
+    "Minty": ["Mint"],
+}
+
 PRODUCT_CATEGORY_COLUMN_MAP = {
     "MolWt": "MolWt_category",
     "LogP": "LogP_category",
@@ -1563,12 +1568,64 @@ def normalize_unicode_filename(value: str) -> str:
     return "".join(ch for ch in normalized if ch.isalnum())
 
 
+def iter_scent_label_image_candidates(label: str) -> List[str]:
+    queue = [unicodedata.normalize("NFC", label).strip()]
+    candidates: List[str] = []
+    seen = set()
+
+    while queue:
+        current = queue.pop(0)
+        if not current or current in seen:
+            continue
+
+        seen.add(current)
+        candidates.append(current)
+
+        for alias in SCENT_LABEL_IMAGE_ALIASES.get(current, []):
+            normalized_alias = unicodedata.normalize("NFC", alias).strip()
+            if normalized_alias and normalized_alias not in seen:
+                queue.append(normalized_alias)
+
+        for fallback in SCENT_LABEL_FALLBACKS.get(current, []):
+            normalized_fallback = unicodedata.normalize("NFC", fallback).strip()
+            if normalized_fallback and normalized_fallback not in seen:
+                queue.append(normalized_fallback)
+
+    return candidates
+
+
 def get_scent_label_image_path(label: str) -> Optional[Path]:
-    target = unicodedata.normalize("NFC", label).lower()
-    for path in APP_DIR.glob("*.png"):
-        normalized_name = unicodedata.normalize("NFC", path.name).lower()
-        if target in normalized_name:
-            return path
+    image_extensions = {".png", ".jpg", ".jpeg", ".webp"}
+    image_files = [
+        path for path in APP_DIR.iterdir() if path.is_file() and path.suffix.lower() in image_extensions
+    ]
+
+    for candidate in iter_scent_label_image_candidates(label):
+        candidate_terms = []
+        normalized_asset = normalize_asset_key(candidate)
+        normalized_unicode = normalize_unicode_filename(candidate)
+        if normalized_asset:
+            candidate_terms.append(normalized_asset)
+        if normalized_unicode and normalized_unicode not in candidate_terms:
+            candidate_terms.append(normalized_unicode)
+
+        for path in image_files:
+            normalized_asset_name = normalize_asset_key(path.stem)
+            normalized_unicode_name = normalize_unicode_filename(path.stem)
+            if any(
+                term and (term == normalized_asset_name or term == normalized_unicode_name)
+                for term in candidate_terms
+            ):
+                return path
+
+        for path in image_files:
+            normalized_asset_name = normalize_asset_key(path.stem)
+            normalized_unicode_name = normalize_unicode_filename(path.stem)
+            if any(
+                term and (term in normalized_asset_name or term in normalized_unicode_name)
+                for term in candidate_terms
+            ):
+                return path
     return None
 
 
